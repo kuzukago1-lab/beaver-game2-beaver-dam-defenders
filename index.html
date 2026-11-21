@@ -2271,16 +2271,19 @@
            ========================================================= */
         function drawStatusBar(x, y, width, height, current, max, label, fillColor, centerText = null, textColor = "#ffffff") {
             ctx.save();
-            ctx.fillStyle = nightMode ? "#fff" : "#000";
-            ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
+            ctx.font = "bold 14px 'M PLUS Rounded 1c', sans-serif";
             ctx.textAlign = "left";
-            ctx.fillText(label, x, y - 4);
+            ctx.strokeStyle = nightMode ? "#000000" : "rgba(255, 255, 255, 0.85)";
+            ctx.lineWidth = 3;
+            ctx.strokeText(label, x, y - 5);
+            ctx.fillStyle = nightMode ? "#ffffff" : "#111111";
+            ctx.fillText(label, x, y - 5);
 
-            ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-            ctx.strokeStyle = nightMode ? "#fff" : "#000";
-            ctx.lineWidth = 2;
+            ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+            ctx.strokeStyle = nightMode ? "#ffffff" : "#111111";
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
-            ctx.roundRect(x, y, width, height, 5);
+            ctx.roundRect(x, y, width, height, 6);
             ctx.fill();
             ctx.stroke();
 
@@ -2288,16 +2291,19 @@
             if (ratio > 0) {
                 ctx.fillStyle = fillColor;
                 ctx.beginPath();
-                ctx.roundRect(x + 2, y + 2, (width - 4) * ratio, height - 4, 3);
+                ctx.roundRect(x + 2, y + 2, (width - 4) * ratio, height - 4, 4);
                 ctx.fill();
             }
 
             if (centerText !== null) {
-                ctx.font = "bold 10px 'M PLUS Rounded 1c', sans-serif";
+                ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
+                ctx.strokeStyle = "rgba(0, 0, 0, 0.65)";
+                ctx.lineWidth = 2.5;
+                ctx.strokeText(centerText, x + width / 2, y + height / 2 + 0.5);
                 ctx.fillStyle = textColor;
-                ctx.fillText(centerText, x + width / 2, y + height / 2);
+                ctx.fillText(centerText, x + width / 2, y + height / 2 + 0.5);
             }
             ctx.restore();
         }
@@ -2494,24 +2500,24 @@
                 });
             }
 
-            drawStatusBar(18, 18, 115, 14, hp, maxHp, "ビーバーHP", "#ff3344", String(Math.ceil(hp)), "#ffffff");
+            drawStatusBar(16, 20, 132, 20, hp, maxHp, "ビーバーHP", "#ff3344", String(Math.ceil(hp)), "#ffffff");
             let damBarColor = damHp <= 30 ? "#ff6600" : "#33cc44";
-            drawStatusBar(18, 48, 115, 14, damHp, maxDamHp, "ダム耐久度", damBarColor, Math.ceil(damHp) + "%", nightMode ? "#ffffff" : "#000000");
+            drawStatusBar(16, 62, 132, 20, damHp, maxDamHp, "ダム耐久度", damBarColor, Math.ceil(damHp) + "%", "#ffffff");
 
             ctx.fillStyle = nightMode ? "#fff" : "#000";
             ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
             ctx.textAlign = "left";
-            ctx.fillText(`所持丸太: ${woodCount} / 4`, 145, 30);
-            ctx.fillText(`WAVE ${waveLevel}  |  撃退: ${killCount}匹`, 145, 58);
+            ctx.fillText(`所持丸太: ${woodCount} / 4`, 160, 34);
+            ctx.fillText(`WAVE ${waveLevel}  |  撃退: ${killCount}匹`, 160, 68);
 
             ctx.save();
             ctx.textAlign = "center";
-            ctx.font = "bold 26px 'M PLUS Rounded 1c', sans-serif";
+            ctx.font = "bold 25px 'M PLUS Rounded 1c', sans-serif";
             ctx.fillStyle = "#ffff33";
             ctx.strokeStyle = "#000000";
             ctx.lineWidth = 5;
-            ctx.strokeText("SURVIVAL: " + formatTime(survivalTimeMs), canvas.width / 2 + 45, 34);
-            ctx.fillText("SURVIVAL: " + formatTime(survivalTimeMs), canvas.width / 2 + 45, 34);
+            ctx.strokeText("SURVIVAL: " + formatTime(survivalTimeMs), canvas.width / 2 + 80, 36);
+            ctx.fillText("SURVIVAL: " + formatTime(survivalTimeMs), canvas.width / 2 + 80, 36);
             ctx.restore();
 
             if (damX - cameraX > canvas.width - 30) {
