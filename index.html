@@ -160,6 +160,7 @@
             background-color: #4cee6b;
         }
         .action-btn.test-btn {
+            display: none;
             background-color: #00b8d4;
             color: #062229;
         }
@@ -185,7 +186,7 @@
             box-shadow: none;
         }
 
-        /* テストモードパネル */
+        /* テストモードパネル（初期非表示） */
         #testPanel {
             display: none;
             max-width: 800px;
@@ -246,6 +247,17 @@
             color: #102027;
             border-color: #84ffff;
         }
+        .test-chip.invincible-btn {
+            background: #455a64;
+            color: #eceff1;
+            border-color: #78909c;
+        }
+        .test-chip.invincible-btn.active {
+            background: #ffab00;
+            color: #1a1000;
+            border-color: #ffe57f;
+            box-shadow: 0 0 8px rgba(255, 171, 0, 0.6);
+        }
         .test-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -271,7 +283,7 @@
             cursor: pointer;
         }
 
-        #rankingModal {
+        #rankingModal, #keywordModal {
             display: none;
             position: fixed;
             top: 50%;
@@ -290,11 +302,17 @@
             box-shadow: 0 0 30px rgba(0,0,0,0.85);
             font-family: 'M PLUS Rounded 1c', sans-serif;
         }
+        #keywordModal {
+            z-index: 120;
+            width: 380px;
+            border-color: #00e5ff;
+        }
         #rankingModal h3 {
             margin-top: 0;
             margin-bottom: 10px;
             color: #ffcc00;
             font-weight: 800;
+            cursor: pointer;
         }
         #rankingList {
             text-align: left;
@@ -333,7 +351,7 @@
             padding-left: 16px;
             color: #e8e8e8;
         }
-        #nameInput {
+        #nameInput, #keywordInput {
             padding: 6px;
             font-size: 15px;
             width: 180px;
@@ -380,11 +398,12 @@
         </div>
     </div>
 
-    <!-- テストモードパネル（ランク・オーラ確認 / 難易度・パラメータ調整） -->
+    <!-- テストモードパネル（隠しコマンド解除後に出現） -->
     <div id="testPanel">
         <div class="test-header">
             <span class="test-title">🧪 テストモード（ランク＆オーラ確認 / パラメータ調整）</span>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="test-chip invincible-btn" id="invincibleBtn" onclick="toggleInvincibleMode()">🛡️ 無敵モード: OFF</button>
                 <button class="test-chip" onclick="testAddTime(60000)">+1分経過</button>
                 <button class="test-chip" onclick="testAddTime(300000)">+5分経過</button>
                 <button class="test-chip" onclick="testFullHeal()">HP・ダム全回復</button>
@@ -449,7 +468,7 @@
 
     <!-- ランキング＆記録登録モーダル -->
     <div id="rankingModal">
-        <h3 id="modalTitle">🏆 サバイバル防衛ランキング</h3>
+        <h3 id="modalTitle" onclick="handleModalTitleClick()">🏆 サバイバル防衛ランキング</h3>
         <div id="resultMessage" style="display:none; background: #332200; border: 2px solid #ffcc00; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; color: #ffff66;"></div>
 
         <div id="nameEntryArea" style="margin-bottom: 10px; display:none;">
@@ -462,6 +481,18 @@
             <button class="action-btn" onclick="restartGame()" style="padding: 6px 14px; font-size: 13px;">🔄 もう一度遊ぶ</button>
             <button class="action-btn secondary" onclick="closeRankingModal()" style="padding: 6px 14px; font-size: 13px;">閉じる</button>
         </div>
+    </div>
+
+    <!-- キーワード入力モーダル（55回クリックで出現） -->
+    <div id="keywordModal">
+        <h3 style="margin-top:0; margin-bottom:10px; color:#00e5ff;">🔑 キーワード入力</h3>
+        <p style="font-size:13px; margin:6px 0 12px 0; color:#eee;">テストモードを起動するキーワードを入力してください</p>
+        <div style="margin-bottom:10px;">
+            <input type="text" id="keywordInput" maxlength="20" placeholder="キーワード" onkeydown="if(event.key==='Enter') submitKeyword();">
+            <button class="action-btn" onclick="submitKeyword()" style="padding:6px 14px; font-size:14px;">決定</button>
+        </div>
+        <div id="keywordFeedback" style="min-height:18px; font-size:12px; color:#ff6e8a; margin-bottom:8px;"></div>
+        <button class="action-btn secondary" onclick="closeKeywordModal()" style="padding:5px 12px; font-size:12px;">キャンセル</button>
     </div>
 
     <script>
@@ -522,17 +553,104 @@
         }
 
         /* =========================================================
-           1c. テストモード設定＆パラメータ
+           1c. テストモード出現条件（55回クリック + 「バービー」）＆パラメータ
            ========================================================= */
+        const REQUIRED_TITLE_CLICKS = 55;
+        const REQUIRED_TEST_KEYWORD = "バービー";
+
+        let rankingTitleClickCount = 0;
+        let testUnlocked = false;
         let testModeOpen = false;
+        let invincibleMode = false;
+
         let testParams = {
             damWearMult: 1.0,
             enemySpeedMult: 1.0,
-            fixedEnemyInterval: 0, // 0なら自動
+            fixedEnemyInterval: 0,
             beaverSpeed: 4.8,
             tailHpCost: 2,
             tailReach: 64
         };
+
+        function handleModalTitleClick() {
+            const titleEl = document.getElementById("modalTitle");
+            if (!titleEl) return;
+            const currentText = titleEl.innerText || "";
+            if (!currentText.includes("サバイバル防衛ランキング")) return;
+
+            rankingTitleClickCount++;
+            if (rankingTitleClickCount >= REQUIRED_TITLE_CLICKS) {
+                rankingTitleClickCount = 0;
+                openKeywordModal();
+            }
+        }
+
+        function openKeywordModal() {
+            const modal = document.getElementById("keywordModal");
+            const input = document.getElementById("keywordInput");
+            const fb = document.getElementById("keywordFeedback");
+            if (fb) fb.innerText = "";
+            if (modal) modal.style.display = "block";
+            if (input) {
+                input.value = "";
+                setTimeout(() => input.focus(), 80);
+            }
+        }
+
+        function closeKeywordModal() {
+            const modal = document.getElementById("keywordModal");
+            if (modal) modal.style.display = "none";
+            if (document.activeElement) document.activeElement.blur();
+        }
+
+        function submitKeyword() {
+            const input = document.getElementById("keywordInput");
+            const fb = document.getElementById("keywordFeedback");
+            const val = (input ? input.value : "").trim();
+            if (val === REQUIRED_TEST_KEYWORD) {
+                testUnlocked = true;
+                closeKeywordModal();
+                closeRankingModal();
+                const toggleBtn = document.getElementById("testToggleBtn");
+                if (toggleBtn) toggleBtn.style.display = "inline-block";
+                if (!testModeOpen) {
+                    toggleTestPanel();
+                } else {
+                    buildRankTestButtons();
+                    syncSliderLabels();
+                    updateInvincibleButtonUI();
+                }
+                playRankUpSound();
+            } else {
+                if (fb) fb.innerText = "キーワードが違います。";
+                if (input) {
+                    input.value = "";
+                    input.focus();
+                }
+            }
+        }
+
+        function toggleInvincibleMode() {
+            invincibleMode = !invincibleMode;
+            if (invincibleMode) {
+                hp = maxHp;
+                damHp = maxDamHp;
+            }
+            updateInvincibleButtonUI();
+            playHealSound();
+        }
+
+        function updateInvincibleButtonUI() {
+            const btn = document.getElementById("invincibleBtn");
+            if (!btn) return;
+            if (invincibleMode) {
+                btn.classList.add("active");
+                btn.innerText = "🛡️ 無敵モード: ON";
+            } else {
+                btn.classList.remove("active");
+                btn.innerText = "🛡️ 無敵モード: OFF";
+            }
+        }
 
         function buildRankTestButtons() {
             const container = document.getElementById("rankTestButtons");
@@ -565,6 +683,7 @@
         }
 
         function toggleTestPanel() {
+            if (!testUnlocked) return;
             testModeOpen = !testModeOpen;
             const panel = document.getElementById("testPanel");
             const btn = document.getElementById("testToggleBtn");
@@ -576,6 +695,7 @@
             if (testModeOpen) {
                 buildRankTestButtons();
                 syncSliderLabels();
+                updateInvincibleButtonUI();
             }
         }
 
@@ -656,6 +776,7 @@
         }
 
         function resetTestParams() {
+            invincibleMode = false;
             testParams = {
                 damWearMult: 1.0,
                 enemySpeedMult: 1.0,
@@ -665,6 +786,7 @@
                 tailReach: 64
             };
             beaver.baseSpeed = testParams.beaverSpeed;
+            updateInvincibleButtonUI();
             syncSliderLabels();
         }
 
@@ -1180,7 +1302,7 @@
             if (!gameStarted || gameOver || isTabPaused) return;
             if (beaver.tailCooldown > 0) return;
 
-            let cost = testParams.tailHpCost;
+            let cost = invincibleMode ? 0 : testParams.tailHpCost;
             if (cost > 0) {
                 hp = Math.max(0, hp - cost);
                 damageEffects.push({
@@ -1343,6 +1465,7 @@
         }
 
         async function openRankingModal(showEntry = false) {
+            rankingTitleClickCount = 0;
             let ranking = await getCloudRanking();
             updateRankingDisplay(ranking);
 
@@ -1379,6 +1502,7 @@
         }
 
         function closeRankingModal() {
+            rankingTitleClickCount = 0;
             document.getElementById("rankingModal").style.display = "none";
             if (document.activeElement) document.activeElement.blur();
         }
@@ -1450,6 +1574,7 @@
             keys = {};
             if (document.activeElement) document.activeElement.blur();
             closeRankingModal();
+            closeKeywordModal();
 
             woodCount = 0;
             damHp = 100;
@@ -1538,8 +1663,6 @@
         }
 
         function updateAndDrawBeaverAura(rankIdx) {
-            // 6分〜（rankIdx >= 6）: 黄色オーラ
-            // 10分〜（rankIdx >= 10）: 水色オーラ＋キラキラエフェクト
             if (rankIdx < 6) {
                 auraParticles = [];
                 return;
@@ -1580,7 +1703,6 @@
 
             ctx.save();
 
-            // 1. 体を包むオーラリング（二重レイヤーで立体感）
             let pulseR = 44 + Math.sin(t * 1.4) * 5;
             let outerGrad = ctx.createRadialGradient(cx, cy, 10, cx, cy, pulseR + 12);
             if (isGodExtreme) {
@@ -1600,7 +1722,6 @@
             ctx.ellipse(cx, cy, pulseR + 8, pulseR + 12, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 揺らめく炎・オーラの輪郭線
             ctx.strokeStyle = isGodExtreme ? "rgba(150, 245, 255, 0.75)" : "rgba(255, 235, 70, 0.72)";
             ctx.lineWidth = 2.5;
             ctx.beginPath();
@@ -1618,7 +1739,6 @@
             ctx.closePath();
             ctx.stroke();
 
-            // 2. オーラ粒子・キラキラ星の描画
             auraParticles.forEach(p => {
                 let px = cx + p.ox;
                 let py = cy + p.oy;
@@ -2473,12 +2593,14 @@
                     toggleNightMode(true);
                 }
 
-                let waterWearPerFrame = (0.014 + Math.min(0.02, (waveLevel - 1) * 0.003)) * testParams.damWearMult;
-                damHp = Math.max(0, damHp - waterWearPerFrame * frameScale);
-                if (damHp <= 0) {
-                    gameOver = true;
-                    gameOverReason = "ダムが決壊してしまった！";
-                    return;
+                if (!invincibleMode) {
+                    let waterWearPerFrame = (0.014 + Math.min(0.02, (waveLevel - 1) * 0.003)) * testParams.damWearMult;
+                    damHp = Math.max(0, damHp - waterWearPerFrame * frameScale);
+                    if (damHp <= 0) {
+                        gameOver = true;
+                        gameOverReason = "ダムが決壊してしまった！";
+                        return;
+                    }
                 }
             }
 
@@ -2723,18 +2845,27 @@
                     enemy.dir = 1;
                     if (enemy.attackCooldown === 0) {
                         enemy.attackCooldown = 55;
-                        damHp = Math.max(0, damHp - 6);
-                        playDamageSound();
-                        damageEffects.push({
-                            x: damX + 10,
-                            y: 235,
-                            text: "ダム損傷 -6%!",
-                            alpha: 1.0
-                        });
-                        if (damHp <= 0) {
-                            gameOver = true;
-                            gameOverReason = "ハリネズミにダムを壊された！";
-                            return;
+                        if (!invincibleMode) {
+                            damHp = Math.max(0, damHp - 6);
+                            playDamageSound();
+                            damageEffects.push({
+                                x: damX + 10,
+                                y: 235,
+                                text: "ダム損傷 -6%!",
+                                alpha: 1.0
+                            });
+                            if (damHp <= 0) {
+                                gameOver = true;
+                                gameOverReason = "ハリネズミにダムを壊された！";
+                                return;
+                            }
+                        } else {
+                            damageEffects.push({
+                                x: damX + 10,
+                                y: 235,
+                                text: "無敵ガード！",
+                                alpha: 1.0
+                            });
                         }
                     }
                 }
@@ -2743,19 +2874,21 @@
                 if (invincibilityTimer === 0 && beaver.tailAttackTimer === 0 &&
                     beaver.x + margin < enemy.x + enemy.width && beaver.x + beaver.width - margin > enemy.x &&
                     beaver.y + margin < enemy.y + enemy.height && beaver.y + beaver.height - margin > enemy.y) {
-                    hp = Math.max(0, hp - 20);
-                    invincibilityTimer = 60;
-                    playDamageSound();
-                    damageEffects.push({
-                        x: beaver.x + 20,
-                        y: beaver.y - 15,
-                        text: "-20 HP!",
-                        alpha: 1.0
-                    });
-                    if (hp <= 0) {
-                        gameOver = true;
-                        gameOverReason = "ビーバーの体力が尽きてしまった！";
-                        return;
+                    if (!invincibleMode) {
+                        hp = Math.max(0, hp - 20);
+                        invincibilityTimer = 60;
+                        playDamageSound();
+                        damageEffects.push({
+                            x: beaver.x + 20,
+                            y: beaver.y - 15,
+                            text: "-20 HP!",
+                            alpha: 1.0
+                        });
+                        if (hp <= 0) {
+                            gameOver = true;
+                            gameOverReason = "ビーバーの体力が尽きてしまった！";
+                            return;
+                        }
                     }
                 }
             }
@@ -3010,7 +3143,7 @@
 
             let woodText = `所持丸太: ${woodCount} / 4`;
             let waveKillText = `WAVE ${waveLevel}  |  撃退: ${killCount}匹`;
-            let rankLabelText = `ランク: ${activeRankName}`;
+            let rankLabelText = `ランク: ${activeRankName}${invincibleMode ? " [無敵]" : ""}`;
 
             ctx.strokeText(woodText, 160, 32);
             ctx.fillStyle = nightMode ? "#fff" : "#111";
@@ -3020,7 +3153,7 @@
             ctx.fillText(waveKillText, 160, 52);
 
             ctx.strokeText(rankLabelText, 160, 74);
-            ctx.fillStyle = activeRankIdx >= 10 ? "#40e0ff" : (activeRankIdx >= 6 ? "#ffe033" : (nightMode ? "#7fe8ff" : "#004d99"));
+            ctx.fillStyle = invincibleMode ? "#ffab00" : (activeRankIdx >= 10 ? "#40e0ff" : (activeRankIdx >= 6 ? "#ffe033" : (nightMode ? "#7fe8ff" : "#004d99")));
             ctx.fillText(rankLabelText, 160, 74);
             ctx.restore();
 
