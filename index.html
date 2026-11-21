@@ -186,10 +186,10 @@
             background: rgba(20, 20, 20, 0.96);
             border: 3px solid #ffcc00;
             border-radius: 12px;
-            padding: 18px;
+            padding: 18px 22px;
             color: #fff;
-            width: 350px;
-            max-width: 92%;
+            width: 540px;
+            max-width: 95%;
             max-height: 90vh;
             overflow-y: auto;
             z-index: 100;
@@ -205,25 +205,36 @@
         #rankingList {
             text-align: left;
             font-size: 13px;
-            max-height: 190px;
+            max-height: 210px;
             overflow-y: auto;
+            overflow-x: auto;
             margin-bottom: 12px;
             background: #2a2a2a;
-            padding: 8px;
+            padding: 10px 12px;
             border-radius: 6px;
             font-weight: 800;
         }
         .ranking-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 4px;
+            align-items: center;
+            gap: 14px;
+            white-space: nowrap;
+            margin-bottom: 5px;
             border-bottom: 1px solid #444;
-            padding-bottom: 2px;
+            padding-bottom: 4px;
+        }
+        .ranking-row .rank-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ranking-row .rank-score {
+            flex-shrink: 0;
         }
         #nameInput {
             padding: 6px;
             font-size: 15px;
-            width: 150px;
+            width: 180px;
             text-align: center;
             border-radius: 4px;
             border: 1px solid #ccc;
@@ -269,7 +280,7 @@
     <!-- ランキング＆記録登録モーダル -->
     <div id="rankingModal">
         <h3 id="modalTitle">🏆 サバイバル生存ランキング</h3>
-        <div id="resultMessage" style="display:none; background: #332200; border: 2px solid #ffcc00; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; color: #ffff66;"></div>
+        <div id="resultMessage" style="display:none; background: #332200; border: 2px solid #ffcc00; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; color: #ffff66;"></div>
 
         <div id="nameEntryArea" style="margin-bottom: 10px; display:none;">
             <p style="font-size: 13px; margin: 4px 0;">お名前を入力して記録を登録:</p>
@@ -404,7 +415,7 @@
                     rowStyle = "color: #ffd700; font-weight: bold;";
                 }
                 let subInfo = (r.kills !== undefined) ? ` [撃退:${r.kills}]` : "";
-                listHtml += `<div class="ranking-row" style="${rowStyle}"><span>${rankNum}. ${nameDisplay}</span><span>${r.survivalStr}${subInfo} <small style="color:#aaa; font-weight:normal;">(${r.date || ""})</small></span></div>`;
+                listHtml += `<div class="ranking-row" style="${rowStyle}"><span class="rank-name">${rankNum}. ${nameDisplay}</span><span class="rank-score">${r.survivalStr}${subInfo} <small style="color:#aaa; font-weight:normal;">(${r.date || ""})</small></span></div>`;
             });
             listEl.innerHTML = listHtml;
         }
@@ -1790,12 +1801,10 @@
            9b. ダムからの距離に応じたニンジン出現＆金の大きなニンジン
            ========================================================= */
         function pickWeightedCarrotX() {
-            // ダム（damX = 1800）から遠い左エリア（x=120付近）ほど選ばれやすい重み付け
             let minX = 120;
             let maxX = damX - 90;
             let bestX = minX + Math.random() * (maxX - minX);
 
-            // 2回抽選して「ダムにより遠い方（xが小さい方）」を優先採用することで遠方ほど出現率UP
             let candidateX = minX + Math.random() * (maxX - minX);
             if (Math.abs(damX - candidateX) > Math.abs(damX - bestX)) {
                 bestX = candidateX;
@@ -1808,9 +1817,8 @@
 
             let rx = pickWeightedCarrotX();
             let distFromDam = Math.max(0, damX - rx);
-            let distRatio = Math.min(1, distFromDam / (damX - 120)); // ダムから遠いほど 1.0 に近づく
+            let distRatio = Math.min(1, distFromDam / (damX - 120));
 
-            // ダムから遠いほど金の大きなニンジンが出る確率もUP（約15%〜40%）
             let isGolden = Math.random() < (0.15 + distRatio * 0.25);
             let ry = (Math.random() < 0.65) ? (isGolden ? 262 : 272) : (185 + Math.random() * 40);
 
@@ -1972,7 +1980,6 @@
 
             if (invincibilityTimer > 0) invincibilityTimer--;
 
-            // ダムからビーバーが離れているほどニンジンの出現間隔が短く（出現率UP）なる
             let beaverDistFromDam = Math.max(0, damX - beaver.x);
             let beaverDistFactor = Math.min(1, beaverDistFromDam / (damX - 120));
             let spawnThreshold = Math.round(320 - beaverDistFactor * 150);
