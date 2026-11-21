@@ -281,7 +281,7 @@
         <div class="menu-btns">
             <button class="action-btn start-btn" id="startBtn" onclick="startGame()">▶ ゲームスタート</button>
             <button class="action-btn" id="restartBtn" onclick="onCommandAction('restart'); restartGame();">🔄 リスタート</button>
-            <button class="action-btn" id="rankingBtn" onclick="onCommandAction('ranking'); openRankingModal(false);">🏆 ランキング</button>
+            <button class="action-btn" id="rankingBtn" onclick="onCommandAction('ranking'); openRankingModal(false);">🏆 防衛ランキング</button>
         </div>
     </div>
 
@@ -332,6 +332,32 @@
         }
 
         const rankingCollectionName = "survival_rankings";
+
+        /* =========================================================
+           1b. 1分ごとのビーバーランク定義（0分〜10分）
+           ========================================================= */
+        const BEAVER_RANKS = [
+            "普通ビーバー",
+            "ちょっと本気ビーバー",
+            "ニンジン好きビーバー",
+            "しっぽブンブンビーバー",
+            "眠らないビーバー",
+            "鋼鉄のしっぽビーバー",
+            "超ヤサイビーバー",
+            "宇宙ビーバー",
+            "次元超えビーバー",
+            "もはや神ビーバー",
+            "スーパーヤサイビーバーゴッド極"
+        ];
+
+        function getRankIndexFromMs(ms) {
+            let minutesPassed = Math.floor(Math.max(0, ms) / 60000);
+            return Math.min(BEAVER_RANKS.length - 1, minutesPassed);
+        }
+
+        function getRankNameFromMs(ms) {
+            return BEAVER_RANKS[getRankIndexFromMs(ms)];
+        }
 
         /* =========================================================
            2. 隠しコマンド＆夜景モード
@@ -402,6 +428,7 @@
                 survivalStr: survivalStr,
                 kills: kills,
                 repairs: repairs,
+                rankName: getRankNameFromMs(survivalMs),
                 date: dateStr,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -424,9 +451,10 @@
                     rowStyle = "color: #ffd700; font-weight: bold;";
                     scoreStyle = "color: #ffe885;";
                 }
+                let beaverRank = r.rankName || getRankNameFromMs(r.survivalMs || 0);
                 let subInfo = (r.kills !== undefined) ? `  [撃退:${r.kills}]` : "";
                 let dateInfo = r.date ? ` <small style="color:#aaa; font-weight:normal;">(${r.date})</small>` : "";
-                listHtml += `<div class="ranking-row" style="${rowStyle}"><span class="rank-name">${rankNum}. ${nameDisplay}</span><span class="rank-score" style="${scoreStyle}">${r.survivalStr}${subInfo}${dateInfo}</span></div>`;
+                listHtml += `<div class="ranking-row" style="${rowStyle}"><span class="rank-name">${rankNum}. ${nameDisplay} <small style="color:#7fe8ff; font-weight:normal;">[${beaverRank}]</small></span><span class="rank-score" style="${scoreStyle}">${r.survivalStr}${subInfo}${dateInfo}</span></div>`;
             });
             listEl.innerHTML = listHtml;
         }
@@ -443,6 +471,29 @@
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
+        }
+
+        function playRankUpSound() {
+            initAudio();
+            if (!audioCtx) return;
+            let notes = [
+                { f: 523.25, t: 0.0,  d: 0.09 },
+                { f: 659.25, t: 0.08, d: 0.09 },
+                { f: 783.99, t: 0.16, d: 0.09 },
+                { f: 1046.50, t: 0.24, d: 0.28 }
+            ];
+            notes.forEach(n => {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(n.f, audioCtx.currentTime + n.t);
+                gain.gain.setValueAtTime(0.16, audioCtx.currentTime + n.t);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + n.t + n.d);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + n.t);
+                osc.stop(audioCtx.currentTime + n.t + n.d);
+            });
         }
 
         function playStartSound() {
@@ -688,6 +739,10 @@
         let isTabPaused = false;
         let finalTimeString = "";
         let scoreRegistered = false;
+
+        let currentRankIndex = 0;
+        let rankUpBannerTimer = 0;
+        let rankUpBannerText = "";
 
         let killCount = 0;
         let repairCount = 0;
@@ -956,6 +1011,8 @@
             isTabPaused = false;
             lastTickTime = performance.now();
             survivalTimeMs = 0;
+            currentRankIndex = 0;
+            rankUpBannerTimer = 0;
             showStartText = true;
             startTextTimer = 0;
             bgmStep = 0;
@@ -979,7 +1036,8 @@
 
             if (showEntry && gameOver && survivalTimeMs > 0) {
                 let currentRank = ranking.filter(r => (r.survivalMs || 0) > survivalTimeMs).length + 1;
-                resMsg.innerHTML = `🛡️ 防衛記録: <b>${finalTimeString}</b>（撃退 ${killCount}匹 / 補修 ${repairCount}回）<br>いま登録すると <span style="font-size:19px; color:#ff4444;">【 ${currentRank}位 】</span> です！`;
+                let reachedRankName = getRankNameFromMs(survivalTimeMs);
+                resMsg.innerHTML = `🛡️ 防衛記録: <b>${finalTimeString}</b>（<b>${reachedRankName}</b> / 撃退 ${killCount}匹 / 補修 ${repairCount}回）<br>いま登録すると <span style="font-size:19px; color:#ff4444;">【 ${currentRank}位 】</span> です！`;
                 entryArea.style.display = "block";
                 resMsg.style.display = "block";
                 document.getElementById("modalTitle").innerText = "🛡️ 防衛戦リザルト";
@@ -1097,6 +1155,10 @@
             carrots = [];
             carrotSpawnTimer = 0;
             enemySpawnTimer = 0;
+
+            currentRankIndex = 0;
+            rankUpBannerTimer = 0;
+            rankUpBannerText = "";
 
             killCount = 0;
             repairCount = 0;
@@ -1878,6 +1940,7 @@
 
         function update(now) {
             if (nightModeMsgTimer > 0) nightModeMsgTimer--;
+            if (rankUpBannerTimer > 0) rankUpBannerTimer--;
 
             if (gameOver) {
                 if (!gameOverSoundPlayed) {
@@ -1913,6 +1976,13 @@
 
             if (timerRunning) {
                 survivalTimeMs += safeDelta;
+                let newRankIndex = getRankIndexFromMs(survivalTimeMs);
+                if (newRankIndex > currentRankIndex) {
+                    currentRankIndex = newRankIndex;
+                    rankUpBannerText = BEAVER_RANKS[currentRankIndex];
+                    rankUpBannerTimer = 150;
+                    playRankUpSound();
+                }
             }
 
             updateBGM();
@@ -2504,11 +2574,28 @@
             let damBarColor = damHp <= 30 ? "#ff6600" : "#33cc44";
             drawStatusBar(16, 62, 132, 20, damHp, maxDamHp, "ダム耐久度", damBarColor, Math.ceil(damHp) + "%", "#ffffff");
 
-            ctx.fillStyle = nightMode ? "#fff" : "#000";
+            let activeRankName = getRankNameFromMs(survivalTimeMs);
+            ctx.save();
             ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
             ctx.textAlign = "left";
-            ctx.fillText(`所持丸太: ${woodCount} / 4`, 160, 34);
-            ctx.fillText(`WAVE ${waveLevel}  |  撃退: ${killCount}匹`, 160, 68);
+            ctx.strokeStyle = nightMode ? "#000000" : "rgba(255, 255, 255, 0.85)";
+            ctx.lineWidth = 3;
+
+            let woodText = `所持丸太: ${woodCount} / 4`;
+            let waveKillText = `WAVE ${waveLevel}  |  撃退: ${killCount}匹`;
+            let rankLabelText = `ランク: ${activeRankName}`;
+
+            ctx.strokeText(woodText, 160, 32);
+            ctx.fillStyle = nightMode ? "#fff" : "#111";
+            ctx.fillText(woodText, 160, 32);
+
+            ctx.strokeText(waveKillText, 160, 52);
+            ctx.fillText(waveKillText, 160, 52);
+
+            ctx.strokeText(rankLabelText, 160, 74);
+            ctx.fillStyle = nightMode ? "#7fe8ff" : "#004d99";
+            ctx.fillText(rankLabelText, 160, 74);
+            ctx.restore();
 
             ctx.save();
             ctx.textAlign = "center";
@@ -2516,8 +2603,8 @@
             ctx.fillStyle = "#ffff33";
             ctx.strokeStyle = "#000000";
             ctx.lineWidth = 5;
-            ctx.strokeText("SURVIVAL: " + formatTime(survivalTimeMs), canvas.width / 2 + 80, 36);
-            ctx.fillText("SURVIVAL: " + formatTime(survivalTimeMs), canvas.width / 2 + 80, 36);
+            ctx.strokeText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 100, 36);
+            ctx.fillText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 100, 36);
             ctx.restore();
 
             if (damX - cameraX > canvas.width - 30) {
@@ -2530,6 +2617,21 @@
                 ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
                 ctx.textAlign = "center";
                 ctx.fillText(`ダム耐久 ${Math.ceil(damHp)}% ▶`, canvas.width - 72, 90);
+                ctx.restore();
+            }
+
+            if (rankUpBannerTimer > 0) {
+                let alpha = Math.min(1, rankUpBannerTimer / 25);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.textAlign = "center";
+                ctx.font = "bold 26px 'M PLUS Rounded 1c', sans-serif";
+                ctx.fillStyle = "#ffcc00";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 5;
+                let bannerStr = `🎉 ランクアップ！${rankUpBannerText}！ 🎉`;
+                ctx.strokeText(bannerStr, canvas.width / 2 + 50, 145);
+                ctx.fillText(bannerStr, canvas.width / 2 + 50, 145);
                 ctx.restore();
             }
 
@@ -2604,18 +2706,23 @@
                 ctx.strokeStyle = "#000000";
                 ctx.lineWidth = 6;
                 ctx.font = "bold 38px 'M PLUS Rounded 1c', sans-serif";
-                ctx.strokeText("GAME OVER", canvas.width / 2, 165);
-                ctx.fillText("GAME OVER", canvas.width / 2, 165);
+                ctx.strokeText("GAME OVER", canvas.width / 2, 155);
+                ctx.fillText("GAME OVER", canvas.width / 2, 155);
 
                 ctx.fillStyle = "#ffffff";
                 ctx.font = "bold 17px 'M PLUS Rounded 1c', sans-serif";
-                ctx.strokeText(gameOverReason, canvas.width / 2, 200);
-                ctx.fillText(gameOverReason, canvas.width / 2, 200);
+                ctx.strokeText(gameOverReason, canvas.width / 2, 190);
+                ctx.fillText(gameOverReason, canvas.width / 2, 190);
+
+                ctx.fillStyle = "#7fe8ff";
+                ctx.font = "bold 18px 'M PLUS Rounded 1c', sans-serif";
+                ctx.strokeText(`到達ランク: ${activeRankName}`, canvas.width / 2, 220);
+                ctx.fillText(`到達ランク: ${activeRankName}`, canvas.width / 2, 220);
 
                 ctx.fillStyle = "#ffff66";
                 ctx.font = "bold 20px 'M PLUS Rounded 1c', sans-serif";
-                ctx.strokeText(`防衛タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 235);
-                ctx.fillText(`防衛タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 235);
+                ctx.strokeText(`防衛タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 252);
+                ctx.fillText(`防衛タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 252);
                 ctx.restore();
             }
         }
