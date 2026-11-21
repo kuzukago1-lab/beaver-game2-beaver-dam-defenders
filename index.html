@@ -186,7 +186,7 @@
             background: rgba(20, 20, 20, 0.96);
             border: 3px solid #ffcc00;
             border-radius: 12px;
-            padding: 18px 22px;
+            padding: 18px 20px;
             color: #fff;
             width: 540px;
             max-width: 95%;
@@ -205,31 +205,39 @@
         #rankingList {
             text-align: left;
             font-size: 13px;
-            max-height: 210px;
+            max-height: 230px;
             overflow-y: auto;
-            overflow-x: auto;
+            overflow-x: hidden;
             margin-bottom: 12px;
             background: #2a2a2a;
-            padding: 10px 12px;
+            padding: 8px 12px;
             border-radius: 6px;
             font-weight: 800;
         }
         .ranking-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 14px;
-            white-space: nowrap;
-            margin-bottom: 5px;
+            flex-direction: column;
+            gap: 2px;
+            white-space: normal;
+            word-break: break-word;
+            margin-bottom: 7px;
             border-bottom: 1px solid #444;
-            padding-bottom: 4px;
+            padding-bottom: 6px;
+        }
+        .ranking-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 2px;
         }
         .ranking-row .rank-name {
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-size: 14px;
+            line-height: 1.35;
         }
         .ranking-row .rank-score {
-            flex-shrink: 0;
+            font-size: 12px;
+            line-height: 1.35;
+            padding-left: 16px;
+            color: #e8e8e8;
         }
         #nameInput {
             padding: 6px;
@@ -410,12 +418,15 @@
                 let rankNum = index + 1;
                 let nameDisplay = r.name || "名無しさん";
                 let rowStyle = "";
+                let scoreStyle = "";
                 if (rankNum === 1) {
                     nameDisplay = "👑 " + nameDisplay;
                     rowStyle = "color: #ffd700; font-weight: bold;";
+                    scoreStyle = "color: #ffe885;";
                 }
-                let subInfo = (r.kills !== undefined) ? ` [撃退:${r.kills}]` : "";
-                listHtml += `<div class="ranking-row" style="${rowStyle}"><span class="rank-name">${rankNum}. ${nameDisplay}</span><span class="rank-score">${r.survivalStr}${subInfo} <small style="color:#aaa; font-weight:normal;">(${r.date || ""})</small></span></div>`;
+                let subInfo = (r.kills !== undefined) ? `  [撃退:${r.kills}]` : "";
+                let dateInfo = r.date ? ` <small style="color:#aaa; font-weight:normal;">(${r.date})</small>` : "";
+                listHtml += `<div class="ranking-row" style="${rowStyle}"><span class="rank-name">${rankNum}. ${nameDisplay}</span><span class="rank-score" style="${scoreStyle}">${r.survivalStr}${subInfo}${dateInfo}</span></div>`;
             });
             listEl.innerHTML = listHtml;
         }
