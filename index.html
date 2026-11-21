@@ -137,11 +137,11 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
         }
         .action-btn {
-            padding: 8px 18px;
-            font-size: 14px;
+            padding: 8px 16px;
+            font-size: 13px;
             font-family: 'M PLUS Rounded 1c', sans-serif;
             font-weight: 800;
             background-color: #ffcc00;
@@ -159,6 +159,14 @@
         .action-btn.start-btn:hover {
             background-color: #4cee6b;
         }
+        .action-btn.test-btn {
+            background-color: #00b8d4;
+            color: #062229;
+        }
+        .action-btn.test-btn.active {
+            background-color: #ff4081;
+            color: #fff;
+        }
         .action-btn:hover {
             background-color: #ffdd33;
         }
@@ -175,6 +183,92 @@
             color: #ccc;
             cursor: not-allowed;
             box-shadow: none;
+        }
+
+        /* テストモードパネル */
+        #testPanel {
+            display: none;
+            max-width: 800px;
+            margin: 8px auto 0 auto;
+            background: #222831;
+            color: #eeeeee;
+            border: 2px solid #00e5ff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 12px;
+            box-shadow: 0 4px 14px rgba(0, 229, 255, 0.2);
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #39424e;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .test-title {
+            color: #00e5ff;
+            font-size: 13px;
+        }
+        .test-section {
+            margin-bottom: 8px;
+        }
+        .test-label {
+            display: block;
+            color: #ffd54f;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+        .test-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .test-chip {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-weight: 800;
+            background: #303841;
+            color: #fff;
+            border: 1px solid #526071;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .test-chip:hover {
+            background: #3e4955;
+        }
+        .test-chip.active {
+            background: #00e5ff;
+            color: #102027;
+            border-color: #84ffff;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 8px;
+        }
+        .test-param-box {
+            background: #2b323d;
+            border: 1px solid #3f4a59;
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+        .test-param-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+        .test-param-val {
+            color: #80deea;
+        }
+        .test-param-box input[type="range"] {
+            width: 100%;
+            cursor: pointer;
         }
 
         #rankingModal {
@@ -276,12 +370,80 @@
 
     <div class="info-area">
         <div class="info">
-            🛡️ しっぽ攻撃（HP-2）で撃退！ダムから遠いほどニンジン出現率UP、金の大きなニンジンで体力MAX！
+            🛡️ しっぽ攻撃（HP-2）で撃退！6分〜黄色オーラ、10分〜水色オーラ＆キラキラ！
         </div>
         <div class="menu-btns">
             <button class="action-btn start-btn" id="startBtn" onclick="startGame()">▶ ゲームスタート</button>
             <button class="action-btn" id="restartBtn" onclick="onCommandAction('restart'); restartGame();">🔄 リスタート</button>
             <button class="action-btn" id="rankingBtn" onclick="onCommandAction('ranking'); openRankingModal(false);">🏆 防衛ランキング</button>
+            <button class="action-btn test-btn" id="testToggleBtn" onclick="toggleTestPanel()">🧪 テストモード</button>
+        </div>
+    </div>
+
+    <!-- テストモードパネル（ランク・オーラ確認 / 難易度・パラメータ調整） -->
+    <div id="testPanel">
+        <div class="test-header">
+            <span class="test-title">🧪 テストモード（ランク＆オーラ確認 / パラメータ調整）</span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="test-chip" onclick="testAddTime(60000)">+1分経過</button>
+                <button class="test-chip" onclick="testAddTime(300000)">+5分経過</button>
+                <button class="test-chip" onclick="testFullHeal()">HP・ダム全回復</button>
+                <button class="test-chip" onclick="testSpawnEnemyNow()">敵1体出現</button>
+                <button class="test-chip" onclick="resetTestParams()">初期値に戻す</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <span class="test-label">1. ランク・オーラ即時テスト（クリックで該当ランクの時間＆見た目に切替）</span>
+            <div class="test-chip-row" id="rankTestButtons"></div>
+        </div>
+
+        <div class="test-section">
+            <span class="test-label">2. 難易度・キャラクターパラメータ調整</span>
+            <div class="test-grid">
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>ダム自然減少倍率</span>
+                        <span class="test-param-val" id="valDamWear">1.0x</span>
+                    </div>
+                    <input type="range" id="sliderDamWear" min="0" max="3.0" step="0.1" value="1.0" oninput="updateTestParams()">
+                </div>
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>敵の移動速度倍率</span>
+                        <span class="test-param-val" id="valEnemySpeed">1.0x</span>
+                    </div>
+                    <input type="range" id="sliderEnemySpeed" min="0.2" max="2.5" step="0.1" value="1.0" oninput="updateTestParams()">
+                </div>
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>敵の出現間隔（フレーム）</span>
+                        <span class="test-param-val" id="valEnemyInterval">自動</span>
+                    </div>
+                    <input type="range" id="sliderEnemyInterval" min="0" max="300" step="10" value="0" oninput="updateTestParams()">
+                </div>
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>ビーバー移動速度</span>
+                        <span class="test-param-val" id="valBeaverSpeed">4.8</span>
+                    </div>
+                    <input type="range" id="sliderBeaverSpeed" min="2.5" max="10.0" step="0.2" value="4.8" oninput="updateTestParams()">
+                </div>
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>しっぽ攻撃 消費HP</span>
+                        <span class="test-param-val" id="valTailCost">2</span>
+                    </div>
+                    <input type="range" id="sliderTailCost" min="0" max="10" step="1" value="2" oninput="updateTestParams()">
+                </div>
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>しっぽ攻撃 リーチ</span>
+                        <span class="test-param-val" id="valTailReach">64</span>
+                    </div>
+                    <input type="range" id="sliderTailReach" min="40" max="150" step="4" value="64" oninput="updateTestParams()">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -357,6 +519,153 @@
 
         function getRankNameFromMs(ms) {
             return BEAVER_RANKS[getRankIndexFromMs(ms)];
+        }
+
+        /* =========================================================
+           1c. テストモード設定＆パラメータ
+           ========================================================= */
+        let testModeOpen = false;
+        let testParams = {
+            damWearMult: 1.0,
+            enemySpeedMult: 1.0,
+            fixedEnemyInterval: 0, // 0なら自動
+            beaverSpeed: 4.8,
+            tailHpCost: 2,
+            tailReach: 64
+        };
+
+        function buildRankTestButtons() {
+            const container = document.getElementById("rankTestButtons");
+            if (!container) return;
+            container.innerHTML = "";
+            BEAVER_RANKS.forEach((rankName, idx) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "test-chip";
+                btn.id = "rankChip_" + idx;
+                let tag = "";
+                if (idx >= 6 && idx < 10) tag = " [黄オーラ]";
+                if (idx >= 10) tag = " [水色+キラキラ]";
+                btn.innerText = `${idx}分:${rankName}${tag}`;
+                btn.onclick = () => testSetRank(idx);
+                container.appendChild(btn);
+            });
+            highlightActiveRankChip();
+        }
+
+        function highlightActiveRankChip() {
+            const activeIdx = getRankIndexFromMs(survivalTimeMs);
+            for (let i = 0; i < BEAVER_RANKS.length; i++) {
+                const chip = document.getElementById("rankChip_" + i);
+                if (chip) {
+                    if (i === activeIdx) chip.classList.add("active");
+                    else chip.classList.remove("active");
+                }
+            }
+        }
+
+        function toggleTestPanel() {
+            testModeOpen = !testModeOpen;
+            const panel = document.getElementById("testPanel");
+            const btn = document.getElementById("testToggleBtn");
+            if (panel) panel.style.display = testModeOpen ? "block" : "none";
+            if (btn) {
+                if (testModeOpen) btn.classList.add("active");
+                else btn.classList.remove("active");
+            }
+            if (testModeOpen) {
+                buildRankTestButtons();
+                syncSliderLabels();
+            }
+        }
+
+        function testSetRank(rankIdx) {
+            initAudio();
+            if (!gameStarted && !gameOver) {
+                startGame();
+            }
+            survivalTimeMs = rankIdx * 60000;
+            currentRankIndex = rankIdx;
+            rankUpBannerText = BEAVER_RANKS[rankIdx];
+            rankUpBannerTimer = 120;
+            waveLevel = 1 + Math.floor(Math.floor(survivalTimeMs / 1000) / 15);
+            highlightActiveRankChip();
+            playRankUpSound();
+        }
+
+        function testAddTime(deltaMs) {
+            initAudio();
+            if (!gameStarted && !gameOver) {
+                startGame();
+            }
+            survivalTimeMs = Math.min(660000, survivalTimeMs + deltaMs);
+            let newIdx = getRankIndexFromMs(survivalTimeMs);
+            if (newIdx !== currentRankIndex) {
+                currentRankIndex = newIdx;
+                rankUpBannerText = BEAVER_RANKS[currentRankIndex];
+                rankUpBannerTimer = 120;
+            }
+            waveLevel = 1 + Math.floor(Math.floor(survivalTimeMs / 1000) / 15);
+            highlightActiveRankChip();
+            playRankUpSound();
+        }
+
+        function testFullHeal() {
+            hp = maxHp;
+            damHp = maxDamHp;
+            playHealSound();
+        }
+
+        function testSpawnEnemyNow() {
+            if (!gameStarted && !gameOver) {
+                startGame();
+            }
+            spawnEnemy(beaver.x - 180 > 80 ? beaver.x - 180 : 300);
+        }
+
+        function syncSliderLabels() {
+            document.getElementById("sliderDamWear").value = testParams.damWearMult;
+            document.getElementById("valDamWear").innerText = testParams.damWearMult.toFixed(1) + "x";
+
+            document.getElementById("sliderEnemySpeed").value = testParams.enemySpeedMult;
+            document.getElementById("valEnemySpeed").innerText = testParams.enemySpeedMult.toFixed(1) + "x";
+
+            document.getElementById("sliderEnemyInterval").value = testParams.fixedEnemyInterval;
+            document.getElementById("valEnemyInterval").innerText = testParams.fixedEnemyInterval === 0 ? "自動" : testParams.fixedEnemyInterval + "f";
+
+            document.getElementById("sliderBeaverSpeed").value = testParams.beaverSpeed;
+            document.getElementById("valBeaverSpeed").innerText = testParams.beaverSpeed.toFixed(1);
+
+            document.getElementById("sliderTailCost").value = testParams.tailHpCost;
+            document.getElementById("valTailCost").innerText = String(testParams.tailHpCost);
+
+            document.getElementById("sliderTailReach").value = testParams.tailReach;
+            document.getElementById("valTailReach").innerText = String(testParams.tailReach);
+        }
+
+        function updateTestParams() {
+            testParams.damWearMult = parseFloat(document.getElementById("sliderDamWear").value);
+            testParams.enemySpeedMult = parseFloat(document.getElementById("sliderEnemySpeed").value);
+            testParams.fixedEnemyInterval = parseInt(document.getElementById("sliderEnemyInterval").value, 10);
+            testParams.beaverSpeed = parseFloat(document.getElementById("sliderBeaverSpeed").value);
+            testParams.tailHpCost = parseInt(document.getElementById("sliderTailCost").value, 10);
+            testParams.tailReach = parseInt(document.getElementById("sliderTailReach").value, 10);
+
+            beaver.baseSpeed = testParams.beaverSpeed;
+            syncSliderLabels();
+        }
+
+        function resetTestParams() {
+            testParams = {
+                damWearMult: 1.0,
+                enemySpeedMult: 1.0,
+                fixedEnemyInterval: 0,
+                beaverSpeed: 4.8,
+                tailHpCost: 2,
+                tailReach: 64
+            };
+            beaver.baseSpeed = testParams.beaverSpeed;
+            syncSliderLabels();
         }
 
         /* =========================================================
@@ -757,6 +1066,8 @@
         let buildSparkles = [];
         let tailShockwaves = [];
         let knockedEnemies = [];
+        let auraParticles = [];
+        let auraSpawnTimer = 0;
 
         let carrots = [];
         let carrotSpawnTimer = 0;
@@ -862,25 +1173,28 @@
         });
 
         /* =========================================================
-           6. 尻尾攻撃（テールアタック）ロジック（1回ごとにHP-2）
+           6. 尻尾攻撃（テールアタック）ロジック
            ========================================================= */
         function triggerTailAttack() {
             initAudio();
             if (!gameStarted || gameOver || isTabPaused) return;
             if (beaver.tailCooldown > 0) return;
 
-            hp = Math.max(0, hp - 2);
-            damageEffects.push({
-                x: beaver.x + 25,
-                y: beaver.y - 12,
-                text: "-2 HP!",
-                alpha: 1.0
-            });
+            let cost = testParams.tailHpCost;
+            if (cost > 0) {
+                hp = Math.max(0, hp - cost);
+                damageEffects.push({
+                    x: beaver.x + 25,
+                    y: beaver.y - 12,
+                    text: `-${cost} HP!`,
+                    alpha: 1.0
+                });
 
-            if (hp <= 0) {
-                gameOver = true;
-                gameOverReason = "しっぽ攻撃を使いすぎて体力が尽きてしまった！";
-                return;
+                if (hp <= 0) {
+                    gameOver = true;
+                    gameOverReason = "しっぽ攻撃を使いすぎて体力が尽きてしまった！";
+                    return;
+                }
             }
 
             beaver.tailAttackTimer = 14;
@@ -894,13 +1208,13 @@
                 y: beaver.y + 42,
                 dir: attackDir,
                 radius: 14,
-                maxRadius: 56,
+                maxRadius: Math.max(56, testParams.tailReach * 0.9),
                 alpha: 1.0
             });
         }
 
         function getTailHitbox() {
-            const reach = 64;
+            const reach = testParams.tailReach;
             if (beaver.facing === 1) {
                 return {
                     x: beaver.x + beaver.width - 10,
@@ -1023,6 +1337,7 @@
                 spawnEnemy(1050);
             }
 
+            highlightActiveRankChip();
             updateStartButtonState();
             playStartSound();
         }
@@ -1112,7 +1427,7 @@
 
         function spawnEnemy(initialX = null) {
             let spawnX = initialX !== null ? initialX : (180 + Math.random() * 450);
-            let baseSpd = 1.6 + Math.min(2.2, (waveLevel - 1) * 0.25) + Math.random() * 0.5;
+            let baseSpd = (1.6 + Math.min(2.2, (waveLevel - 1) * 0.25) + Math.random() * 0.5) * testParams.enemySpeedMult;
             enemies.push({
                 x: spawnX,
                 y: 280,
@@ -1152,6 +1467,8 @@
             buildSparkles = [];
             tailShockwaves = [];
             knockedEnemies = [];
+            auraParticles = [];
+            auraSpawnTimer = 0;
             carrots = [];
             carrotSpawnTimer = 0;
             enemySpawnTimer = 0;
@@ -1170,6 +1487,7 @@
             beaver.y = 220;
             beaver.vx = 0;
             beaver.vy = 0;
+            beaver.baseSpeed = testParams.beaverSpeed;
             beaver.isGrounded = false;
             beaver.facing = -1;
             beaver.rotation = 0;
@@ -1197,11 +1515,12 @@
             woods.forEach(w => { w.collected = false; w.respawnTimer = 0; });
             enemies = [];
             cameraX = Math.max(0, Math.min(worldWidth - canvas.width, beaver.x - 320));
+            highlightActiveRankChip();
             updateStartButtonState();
         }
 
         /* =========================================================
-           9. 描画関数群（元データの絵をそのまま復元＋金色の大きなニンジン）
+           9. 描画関数群（オーラ・キラキラ・キャラ・背景）
            ========================================================= */
         function drawSparkleStar(x, y, size, alpha, color = "#ffffaa") {
             ctx.save();
@@ -1215,6 +1534,109 @@
             ctx.quadraticCurveTo(0, 0, -size, 0);
             ctx.quadraticCurveTo(0, 0, 0, -size);
             ctx.fill();
+            ctx.restore();
+        }
+
+        function updateAndDrawBeaverAura(rankIdx) {
+            // 6分〜（rankIdx >= 6）: 黄色オーラ
+            // 10分〜（rankIdx >= 10）: 水色オーラ＋キラキラエフェクト
+            if (rankIdx < 6) {
+                auraParticles = [];
+                return;
+            }
+
+            const isGodExtreme = rankIdx >= 10;
+            const cx = beaver.x + beaver.width / 2;
+            const cy = beaver.y + beaver.height / 2 + 4;
+            const t = Date.now() * 0.008;
+
+            auraSpawnTimer++;
+            if (auraSpawnTimer >= (isGodExtreme ? 2 : 3)) {
+                auraSpawnTimer = 0;
+                const angle = Math.random() * Math.PI * 2;
+                const spreadR = 16 + Math.random() * 24;
+                auraParticles.push({
+                    ox: Math.cos(angle) * spreadR,
+                    oy: Math.sin(angle) * spreadR * 0.85,
+                    vy: -1.1 - Math.random() * 1.6,
+                    vx: (Math.random() - 0.5) * 0.9,
+                    size: isGodExtreme ? (4 + Math.random() * 5.5) : (3 + Math.random() * 4),
+                    alpha: 1.0,
+                    decay: 0.025 + Math.random() * 0.02,
+                    isSparkle: isGodExtreme && Math.random() < 0.65,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            for (let i = auraParticles.length - 1; i >= 0; i--) {
+                let p = auraParticles[i];
+                p.ox += p.vx;
+                p.oy += p.vy;
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) {
+                    auraParticles.splice(i, 1);
+                }
+            }
+
+            ctx.save();
+
+            // 1. 体を包むオーラリング（二重レイヤーで立体感）
+            let pulseR = 44 + Math.sin(t * 1.4) * 5;
+            let outerGrad = ctx.createRadialGradient(cx, cy, 10, cx, cy, pulseR + 12);
+            if (isGodExtreme) {
+                outerGrad.addColorStop(0.0, "rgba(180, 250, 255, 0.0)");
+                outerGrad.addColorStop(0.55, "rgba(0, 229, 255, 0.28)");
+                outerGrad.addColorStop(0.85, "rgba(64, 196, 255, 0.42)");
+                outerGrad.addColorStop(1.0, "rgba(0, 176, 255, 0.0)");
+            } else {
+                outerGrad.addColorStop(0.0, "rgba(255, 250, 150, 0.0)");
+                outerGrad.addColorStop(0.55, "rgba(255, 225, 40, 0.25)");
+                outerGrad.addColorStop(0.85, "rgba(255, 195, 0, 0.38)");
+                outerGrad.addColorStop(1.0, "rgba(255, 160, 0, 0.0)");
+            }
+
+            ctx.fillStyle = outerGrad;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, pulseR + 8, pulseR + 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 揺らめく炎・オーラの輪郭線
+            ctx.strokeStyle = isGodExtreme ? "rgba(150, 245, 255, 0.75)" : "rgba(255, 235, 70, 0.72)";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            const segments = 24;
+            for (let s = 0; s <= segments; s++) {
+                const a = (s / segments) * Math.PI * 2;
+                const wave = Math.sin(a * 5 + t * 2.2) * 4.5 + Math.cos(a * 3 - t * 1.6) * 2.5;
+                const rx = (34 + wave);
+                const ry = (42 + wave);
+                const px = cx + Math.cos(a) * rx;
+                const py = cy + Math.sin(a) * ry;
+                if (s === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // 2. オーラ粒子・キラキラ星の描画
+            auraParticles.forEach(p => {
+                let px = cx + p.ox;
+                let py = cy + p.oy;
+                let twinkle = 0.65 + 0.35 * Math.sin(t * 2.5 + p.phase);
+                if (p.isSparkle) {
+                    drawSparkleStar(px, py, p.size * twinkle, p.alpha, "#e0ffff");
+                    drawSparkleStar(px + 3, py - 2, p.size * 0.55, p.alpha * 0.85, "#ffffff");
+                } else {
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, Math.min(1, p.alpha * 0.7));
+                    ctx.fillStyle = isGodExtreme ? "#64ffda" : "#ffee58";
+                    ctx.beginPath();
+                    ctx.arc(px, py, p.size * 0.65, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+
             ctx.restore();
         }
 
@@ -1981,6 +2403,7 @@
                     currentRankIndex = newRankIndex;
                     rankUpBannerText = BEAVER_RANKS[currentRankIndex];
                     rankUpBannerTimer = 150;
+                    highlightActiveRankChip();
                     playRankUpSound();
                 }
             }
@@ -2050,7 +2473,7 @@
                     toggleNightMode(true);
                 }
 
-                let waterWearPerFrame = 0.014 + Math.min(0.02, (waveLevel - 1) * 0.003);
+                let waterWearPerFrame = (0.014 + Math.min(0.02, (waveLevel - 1) * 0.003)) * testParams.damWearMult;
                 damHp = Math.max(0, damHp - waterWearPerFrame * frameScale);
                 if (damHp <= 0) {
                     gameOver = true;
@@ -2108,7 +2531,7 @@
             damageEffects = damageEffects.filter(de => de.alpha > 0);
 
             let weightFactor = 1.0 - (woodCount * 0.10);
-            let currentSpeed = beaver.baseSpeed * weightFactor;
+            let currentSpeed = testParams.beaverSpeed * weightFactor;
             let currentJumpForce = beaver.baseJumpForce * (1.0 - (woodCount * 0.03));
 
             if (keys["ArrowLeft"] || keys["KeyA"]) {
@@ -2240,7 +2663,9 @@
             if (timerRunning) {
                 enemySpawnTimer++;
                 let maxEnemies = Math.min(7, 2 + Math.floor(waveLevel / 2));
-                let spawnInterval = Math.max(95, 220 - waveLevel * 14);
+                let spawnInterval = testParams.fixedEnemyInterval > 0
+                    ? testParams.fixedEnemyInterval
+                    : Math.max(95, 220 - waveLevel * 14);
                 if (enemySpawnTimer >= spawnInterval && enemies.length < maxEnemies) {
                     enemySpawnTimer = 0;
                     spawnEnemy(120 + Math.random() * 350);
@@ -2518,12 +2943,14 @@
                 ctx.stroke();
             }
 
+            let activeRankIdx = getRankIndexFromMs(survivalTimeMs);
+            updateAndDrawBeaverAura(activeRankIdx);
             drawBeaver(beaver);
 
             tailShockwaves.forEach(sw => {
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, sw.alpha);
-                ctx.strokeStyle = "#ffdd33";
+                ctx.strokeStyle = activeRankIdx >= 10 ? "#80ffff" : (activeRankIdx >= 6 ? "#ffee58" : "#ffdd33");
                 ctx.lineWidth = 5;
                 ctx.beginPath();
                 let startAng = (sw.dir === 1) ? -0.9 : (Math.PI - 0.9);
@@ -2574,7 +3001,7 @@
             let damBarColor = damHp <= 30 ? "#ff6600" : "#33cc44";
             drawStatusBar(16, 62, 132, 20, damHp, maxDamHp, "ダム耐久度", damBarColor, Math.ceil(damHp) + "%", "#ffffff");
 
-            let activeRankName = getRankNameFromMs(survivalTimeMs);
+            let activeRankName = BEAVER_RANKS[activeRankIdx];
             ctx.save();
             ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
             ctx.textAlign = "left";
@@ -2593,7 +3020,7 @@
             ctx.fillText(waveKillText, 160, 52);
 
             ctx.strokeText(rankLabelText, 160, 74);
-            ctx.fillStyle = nightMode ? "#7fe8ff" : "#004d99";
+            ctx.fillStyle = activeRankIdx >= 10 ? "#40e0ff" : (activeRankIdx >= 6 ? "#ffe033" : (nightMode ? "#7fe8ff" : "#004d99"));
             ctx.fillText(rankLabelText, 160, 74);
             ctx.restore();
 
