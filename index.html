@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -152,6 +152,13 @@
             box-shadow: 0 3px 6px rgba(0,0,0,0.4);
             outline: none;
         }
+        .action-btn.start-btn {
+            background-color: #33dd55;
+            color: #0b2410;
+        }
+        .action-btn.start-btn:hover {
+            background-color: #4cee6b;
+        }
         .action-btn:hover {
             background-color: #ffdd33;
         }
@@ -250,9 +257,10 @@
 
     <div class="info-area">
         <div class="info">
-            🛡️ 丸太を運んでダムを補修しつつ、しっぽ攻撃（Z / X / Enter）でハリネズミを撃退して生き残ろう！
+            🛡️ しっぽ攻撃（HP-2）で撃退！ダムから遠いほどニンジン出現率UP、金の大きなニンジンで体力MAX！
         </div>
         <div class="menu-btns">
+            <button class="action-btn start-btn" id="startBtn" onclick="startGame()">▶ ゲームスタート</button>
             <button class="action-btn" id="restartBtn" onclick="onCommandAction('restart'); restartGame();">🔄 リスタート</button>
             <button class="action-btn" id="rankingBtn" onclick="onCommandAction('ranking'); openRankingModal(false);">🏆 ランキング</button>
         </div>
@@ -576,6 +584,24 @@
             });
         }
 
+        function playGoldenHealSound() {
+            initAudio();
+            if (!audioCtx) return;
+            let notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+            notes.forEach((freq, idx) => {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.055);
+                gain.gain.setValueAtTime(0.16, audioCtx.currentTime + idx * 0.055);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.055 + 0.18);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + idx * 0.055);
+                osc.stop(audioCtx.currentTime + idx * 0.055 + 0.18);
+            });
+        }
+
         let bgmTimer = 0;
         let bgmStep = 0;
         const melodyNotes = [
@@ -584,7 +610,7 @@
         ];
 
         function updateBGM() {
-            if (!timerRunning || gameOver) return;
+            if (!timerRunning || gameOver || isTabPaused) return;
             bgmTimer++;
             if (bgmTimer >= 12) {
                 bgmTimer = 0;
@@ -624,6 +650,7 @@
         let hp = 100;
         const maxHp = 100;
 
+        let gameStarted = false;
         let gameOver = false;
         let gameOverReason = "";
         let gameOverSoundPlayed = false;
@@ -633,9 +660,10 @@
         let invincibilityTimer = 0;
         let deliverTimer = 0;
 
-        let startTime = 0;
+        let lastTickTime = 0;
         let survivalTimeMs = 0;
         let timerRunning = false;
+        let isTabPaused = false;
         let finalTimeString = "";
         let scoreRegistered = false;
 
@@ -721,14 +749,62 @@
         let cameraX = 0;
 
         /* =========================================================
-           6. 尻尾攻撃（テールアタック）ロジック
+           5b. 別タブ・非表示時のタイム停止制御
+           ========================================================= */
+        function pauseForTabSwitch() {
+            keys = {};
+            if (timerRunning && !gameOver && !isTabPaused) {
+                isTabPaused = true;
+                lastTickTime = 0;
+            }
+        }
+
+        function resumeFromTabSwitch() {
+            if (isTabPaused) {
+                isTabPaused = false;
+                lastTickTime = performance.now();
+            }
+        }
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                pauseForTabSwitch();
+            } else {
+                resumeFromTabSwitch();
+            }
+        });
+
+        window.addEventListener("blur", () => {
+            pauseForTabSwitch();
+        });
+
+        window.addEventListener("focus", () => {
+            if (!document.hidden) {
+                resumeFromTabSwitch();
+            }
+        });
+
+        /* =========================================================
+           6. 尻尾攻撃（テールアタック）ロジック（1回ごとにHP-2）
            ========================================================= */
         function triggerTailAttack() {
             initAudio();
-            if (gameOver) return;
-            startTimerIfNeeded();
-
+            if (!gameStarted || gameOver || isTabPaused) return;
             if (beaver.tailCooldown > 0) return;
+
+            hp = Math.max(0, hp - 2);
+            damageEffects.push({
+                x: beaver.x + 25,
+                y: beaver.y - 12,
+                text: "-2 HP!",
+                alpha: 1.0
+            });
+
+            if (hp <= 0) {
+                gameOver = true;
+                gameOverReason = "しっぽ攻撃を使いすぎて体力が尽きてしまった！";
+                return;
+            }
 
             beaver.tailAttackTimer = 14;
             beaver.tailCooldown = 22;
@@ -822,7 +898,7 @@
         });
 
         /* =========================================================
-           8. ランキングモーダル・リスタート処理
+           8. ランキングモーダル・スタート・リスタート処理
            ========================================================= */
         function formatTime(ms) {
             let totalSec = Math.floor(ms / 1000);
@@ -830,6 +906,46 @@
             let sec = totalSec % 60;
             let millis = Math.floor((ms % 1000) / 10);
             return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(millis).padStart(2, '0')}`;
+        }
+
+        function updateStartButtonState() {
+            let startBtn = document.getElementById("startBtn");
+            if (!startBtn) return;
+            if (gameOver) {
+                startBtn.disabled = true;
+                startBtn.innerText = "▶ ゲームスタート";
+            } else if (gameStarted) {
+                startBtn.disabled = true;
+                startBtn.innerText = "⚔️ 防衛中";
+            } else {
+                startBtn.disabled = false;
+                startBtn.innerText = "▶ ゲームスタート";
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            if (gameOver || gameStarted) return;
+            if (document.activeElement) document.activeElement.blur();
+            closeRankingModal();
+
+            gameStarted = true;
+            timerRunning = true;
+            isTabPaused = false;
+            lastTickTime = performance.now();
+            survivalTimeMs = 0;
+            showStartText = true;
+            startTextTimer = 0;
+            bgmStep = 0;
+            bgmTimer = 0;
+
+            if (enemies.length === 0) {
+                spawnEnemy(520);
+                spawnEnemy(1050);
+            }
+
+            updateStartButtonState();
+            playStartSound();
         }
 
         async function openRankingModal(showEntry = false) {
@@ -943,6 +1059,7 @@
             woodCount = 0;
             damHp = 100;
             hp = 100;
+            gameStarted = false;
             gameOver = false;
             gameOverReason = "";
             gameOverSoundPlayed = false;
@@ -983,6 +1100,8 @@
             babyBeavers[2].x = 2050; babyBeavers[2].y = 262; babyBeavers[2].vy = 0; babyBeavers[2].blinkTimer = 110; babyBeavers[2].isBlinking = false;
 
             timerRunning = false;
+            isTabPaused = false;
+            lastTickTime = 0;
             survivalTimeMs = 0;
             finalTimeString = "";
             scoreRegistered = false;
@@ -992,30 +1111,19 @@
             bgmTimer = 0;
 
             woods.forEach(w => { w.collected = false; w.respawnTimer = 0; });
-
             enemies = [];
-            spawnEnemy(520);
-            spawnEnemy(1050);
-        }
-
-        function startTimerIfNeeded() {
-            if (!timerRunning && !gameOver) {
-                timerRunning = true;
-                startTime = Date.now();
-                showStartText = true;
-                startTextTimer = 0;
-                playStartSound();
-            }
+            cameraX = Math.max(0, Math.min(worldWidth - canvas.width, beaver.x - 320));
+            updateStartButtonState();
         }
 
         /* =========================================================
-           9. 描画関数群（元データの絵をそのまま復元）
+           9. 描画関数群（元データの絵をそのまま復元＋金色の大きなニンジン）
            ========================================================= */
-        function drawSparkleStar(x, y, size, alpha) {
+        function drawSparkleStar(x, y, size, alpha, color = "#ffffaa") {
             ctx.save();
             ctx.translate(x, y);
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = "#ffffaa";
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.fillStyle = color;
             ctx.beginPath();
             ctx.moveTo(0, -size);
             ctx.quadraticCurveTo(0, 0, size, 0);
@@ -1039,12 +1147,22 @@
             ctx.restore();
         }
 
-        function drawCarrot(x, y, bobOffset) {
+        function drawCarrot(x, y, bobOffset, isGolden = false) {
             ctx.save();
+            let scale = isGolden ? 1.55 : 1.0;
             ctx.translate(x, y + bobOffset);
+            ctx.scale(scale, scale);
 
-            ctx.fillStyle = "#228B22";
-            ctx.strokeStyle = "#145214";
+            if (isGolden) {
+                let glow = 0.35 + Math.sin(Date.now() * 0.01) * 0.15;
+                ctx.fillStyle = `rgba(255, 225, 60, ${glow})`;
+                ctx.beginPath();
+                ctx.arc(16, 10, 22, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = isGolden ? "#32cd32" : "#228B22";
+            ctx.strokeStyle = isGolden ? "#0d5c0d" : "#145214";
             ctx.lineWidth = 1.5;
 
             ctx.beginPath();
@@ -1057,8 +1175,17 @@
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = "#ff6600";
-            ctx.strokeStyle = "#802b00";
+            if (isGolden) {
+                let grad = ctx.createLinearGradient(0, 4, 26, 18);
+                grad.addColorStop(0, "#ffd700");
+                grad.addColorStop(0.5, "#fff275");
+                grad.addColorStop(1, "#e69500");
+                ctx.fillStyle = grad;
+                ctx.strokeStyle = "#7a4900";
+            } else {
+                ctx.fillStyle = "#ff6600";
+                ctx.strokeStyle = "#802b00";
+            }
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(2, 16);
@@ -1069,13 +1196,18 @@
             ctx.fill();
             ctx.stroke();
 
-            ctx.strokeStyle = "#cc4400";
+            ctx.strokeStyle = isGolden ? "#b37400" : "#cc4400";
             ctx.lineWidth = 1.2;
             ctx.beginPath();
             ctx.moveTo(10, 12); ctx.lineTo(10, 16);
             ctx.moveTo(15, 9);  ctx.lineTo(15, 14);
             ctx.moveTo(19, 11); ctx.lineTo(19, 15);
             ctx.stroke();
+
+            if (isGolden) {
+                drawSparkleStar(6, 11, 4.5, 0.95, "#ffffff");
+                drawSparkleStar(20, 9, 3.5, 0.85, "#ffffff");
+            }
 
             ctx.restore();
         }
@@ -1654,11 +1786,43 @@
             ctx.restore();
         }
 
+        /* =========================================================
+           9b. ダムからの距離に応じたニンジン出現＆金の大きなニンジン
+           ========================================================= */
+        function pickWeightedCarrotX() {
+            // ダム（damX = 1800）から遠い左エリア（x=120付近）ほど選ばれやすい重み付け
+            let minX = 120;
+            let maxX = damX - 90;
+            let bestX = minX + Math.random() * (maxX - minX);
+
+            // 2回抽選して「ダムにより遠い方（xが小さい方）」を優先採用することで遠方ほど出現率UP
+            let candidateX = minX + Math.random() * (maxX - minX);
+            if (Math.abs(damX - candidateX) > Math.abs(damX - bestX)) {
+                bestX = candidateX;
+            }
+            return bestX;
+        }
+
         function spawnRandomCarrot() {
-            if (carrots.length >= 2) return;
-            let rx = 300 + Math.random() * (damX - 420);
-            let ry = (Math.random() < 0.6) ? 272 : (190 + Math.random() * 40);
-            carrots.push({ x: rx, y: ry, width: 32, height: 20, timer: 0, life: 600 });
+            if (carrots.length >= 3) return;
+
+            let rx = pickWeightedCarrotX();
+            let distFromDam = Math.max(0, damX - rx);
+            let distRatio = Math.min(1, distFromDam / (damX - 120)); // ダムから遠いほど 1.0 に近づく
+
+            // ダムから遠いほど金の大きなニンジンが出る確率もUP（約15%〜40%）
+            let isGolden = Math.random() < (0.15 + distRatio * 0.25);
+            let ry = (Math.random() < 0.65) ? (isGolden ? 262 : 272) : (185 + Math.random() * 40);
+
+            carrots.push({
+                x: rx,
+                y: ry,
+                width: isGolden ? 50 : 32,
+                height: isGolden ? 31 : 20,
+                isGolden: isGolden,
+                timer: 0,
+                life: isGolden ? 720 : 600
+            });
         }
 
         /* =========================================================
@@ -1693,7 +1857,7 @@
             });
         }
 
-        function update() {
+        function update(now) {
             if (nightModeMsgTimer > 0) nightModeMsgTimer--;
 
             if (gameOver) {
@@ -1701,6 +1865,7 @@
                     gameOverSoundPlayed = true;
                     timerRunning = false;
                     finalTimeString = formatTime(survivalTimeMs);
+                    updateStartButtonState();
                     playGameOverSound();
 
                     if (!scoreRegistered && !gameOverModalTriggered) {
@@ -1712,6 +1877,23 @@
                     }
                 }
                 return;
+            }
+
+            if (!gameStarted || isTabPaused) {
+                lastTickTime = now;
+                return;
+            }
+
+            if (lastTickTime === 0) {
+                lastTickTime = now;
+            }
+            let rawDelta = now - lastTickTime;
+            lastTickTime = now;
+            let safeDelta = Math.max(0, Math.min(50, rawDelta));
+            let frameScale = safeDelta / (1000 / 60);
+
+            if (timerRunning) {
+                survivalTimeMs += safeDelta;
             }
 
             updateBGM();
@@ -1730,17 +1912,17 @@
             if (beaver.tailCooldown > 0) beaver.tailCooldown--;
 
             tailShockwaves.forEach(sw => {
-                sw.x += sw.dir * 4.5;
-                sw.radius += 3.2;
-                sw.alpha -= 0.07;
+                sw.x += sw.dir * 4.5 * frameScale;
+                sw.radius += 3.2 * frameScale;
+                sw.alpha -= 0.07 * frameScale;
             });
             tailShockwaves = tailShockwaves.filter(sw => sw.alpha > 0);
 
             knockedEnemies.forEach(ke => {
-                ke.x += ke.vx;
-                ke.y += ke.vy;
-                ke.vy += 0.55;
-                ke.rot += ke.vRot;
+                ke.x += ke.vx * frameScale;
+                ke.y += ke.vy * frameScale;
+                ke.vy += 0.55 * frameScale;
+                ke.rot += ke.vRot * frameScale;
                 ke.life--;
             });
             knockedEnemies = knockedEnemies.filter(ke => ke.life > 0);
@@ -1755,17 +1937,13 @@
                     life: 40 + Math.random() * 20
                 });
             }
-            buildSparkles.forEach(sp => { sp.y += sp.vy; sp.alpha -= 1 / sp.life; });
+            buildSparkles.forEach(sp => { sp.y += sp.vy * frameScale; sp.alpha -= (1 / sp.life) * frameScale; });
             buildSparkles = buildSparkles.filter(sp => sp.alpha > 0);
 
             clouds.forEach(cloud => {
-                cloud.x -= cloud.speed;
+                cloud.x -= cloud.speed * frameScale;
                 if (cloud.x < -100) cloud.x = worldWidth + 100;
             });
-
-            if (!timerRunning && (keys["ArrowLeft"] || keys["ArrowRight"] || keys["Space"] || keys["KeyA"] || keys["KeyD"])) {
-                startTimerIfNeeded();
-            }
 
             if (showStartText) {
                 startTextTimer++;
@@ -1773,7 +1951,6 @@
             }
 
             if (timerRunning) {
-                survivalTimeMs = Date.now() - startTime;
                 let secElapsed = Math.floor(survivalTimeMs / 1000);
 
                 waveLevel = 1 + Math.floor(secElapsed / 15);
@@ -1785,7 +1962,7 @@
                 }
 
                 let waterWearPerFrame = 0.014 + Math.min(0.02, (waveLevel - 1) * 0.003);
-                damHp = Math.max(0, damHp - waterWearPerFrame);
+                damHp = Math.max(0, damHp - waterWearPerFrame * frameScale);
                 if (damHp <= 0) {
                     gameOver = true;
                     gameOverReason = "ダムが決壊してしまった！";
@@ -1795,33 +1972,51 @@
 
             if (invincibilityTimer > 0) invincibilityTimer--;
 
-            carrotSpawnTimer++;
-            if (carrotSpawnTimer >= 320) {
+            // ダムからビーバーが離れているほどニンジンの出現間隔が短く（出現率UP）なる
+            let beaverDistFromDam = Math.max(0, damX - beaver.x);
+            let beaverDistFactor = Math.min(1, beaverDistFromDam / (damX - 120));
+            let spawnThreshold = Math.round(320 - beaverDistFactor * 150);
+
+            carrotSpawnTimer += frameScale;
+            if (carrotSpawnTimer >= spawnThreshold) {
                 carrotSpawnTimer = 0;
-                if (Math.random() < 0.75) spawnRandomCarrot();
+                let spawnChance = 0.55 + beaverDistFactor * 0.40;
+                if (Math.random() < spawnChance) spawnRandomCarrot();
             }
 
             carrots.forEach(c => {
-                c.timer++;
+                c.timer += frameScale;
                 if (beaver.x < c.x + c.width && beaver.x + beaver.width > c.x &&
                     beaver.y < c.y + c.height && beaver.y + beaver.height > c.y) {
-                    let healed = Math.min(maxHp - hp, 30);
-                    hp = Math.min(maxHp, hp + 30);
-                    c.collected = true;
-                    playHealSound();
-                    healEffects.push({
-                        x: beaver.x + 15,
-                        y: beaver.y - 15,
-                        text: healed > 0 ? `+${healed} HP!` : "MAX HP!",
-                        alpha: 1.0
-                    });
+                    if (c.isGolden) {
+                        hp = maxHp;
+                        c.collected = true;
+                        playGoldenHealSound();
+                        healEffects.push({
+                            x: beaver.x + 20,
+                            y: beaver.y - 18,
+                            text: "✨ 体力MAX！ ✨",
+                            alpha: 1.0
+                        });
+                    } else {
+                        let healed = Math.min(maxHp - hp, 30);
+                        hp = Math.min(maxHp, hp + 30);
+                        c.collected = true;
+                        playHealSound();
+                        healEffects.push({
+                            x: beaver.x + 15,
+                            y: beaver.y - 15,
+                            text: healed > 0 ? `+${healed} HP!` : "MAX HP!",
+                            alpha: 1.0
+                        });
+                    }
                 }
             });
             carrots = carrots.filter(c => !c.collected && c.timer < c.life);
 
-            healEffects.forEach(he => { he.y -= 1.2; he.alpha -= 0.02; });
+            healEffects.forEach(he => { he.y -= 1.2 * frameScale; he.alpha -= 0.02 * frameScale; });
             healEffects = healEffects.filter(he => he.alpha > 0);
-            damageEffects.forEach(de => { de.y -= 1.2; de.alpha -= 0.02; });
+            damageEffects.forEach(de => { de.y -= 1.2 * frameScale; de.alpha -= 0.02 * frameScale; });
             damageEffects = damageEffects.filter(de => de.alpha > 0);
 
             let weightFactor = 1.0 - (woodCount * 0.10);
@@ -1839,7 +2034,7 @@
             }
 
             if (beaver.isGrounded && beaver.vx !== 0) {
-                beaver.walkTimer += 0.25;
+                beaver.walkTimer += 0.25 * frameScale;
             } else {
                 beaver.walkTimer = 0;
             }
@@ -1850,10 +2045,10 @@
                 playJumpSound();
             }
 
-            beaver.vy += beaver.gravity;
-            beaver.rotation = (!beaver.isGrounded) ? (beaver.rotation + 0.15 * beaver.facing) : 0;
+            beaver.vy += beaver.gravity * frameScale;
+            beaver.rotation = (!beaver.isGrounded) ? (beaver.rotation + 0.15 * beaver.facing * frameScale) : 0;
 
-            beaver.x += beaver.vx;
+            beaver.x += beaver.vx * frameScale;
             let blockWidth = 40;
             let currentBlocks = Math.max(0, Math.ceil((damHp / 100) * 10));
             let blockHeight = 10;
@@ -1866,7 +2061,7 @@
                 }
             }
 
-            beaver.y += beaver.vy;
+            beaver.y += beaver.vy * frameScale;
             const groundY = 300;
             beaver.isGrounded = false;
 
@@ -1968,7 +2163,7 @@
 
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let enemy = enemies[i];
-                enemy.walkTimer += 0.22;
+                enemy.walkTimer += 0.22 * frameScale;
                 if (enemy.attackCooldown > 0) enemy.attackCooldown--;
 
                 enemy.blinkTimer++;
@@ -2009,7 +2204,7 @@
 
                 if (enemy.x + enemy.width < damX) {
                     enemy.dir = 1;
-                    enemy.x += enemy.speed;
+                    enemy.x += enemy.speed * frameScale;
                 } else {
                     enemy.x = damX - enemy.width;
                     enemy.dir = 1;
@@ -2056,7 +2251,7 @@
         /* =========================================================
            11. 画面描画ループ
            ========================================================= */
-        function drawStatusBar(x, y, width, height, current, max, label, fillColor) {
+        function drawStatusBar(x, y, width, height, current, max, label, fillColor, centerText = null, textColor = "#ffffff") {
             ctx.save();
             ctx.fillStyle = nightMode ? "#fff" : "#000";
             ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
@@ -2077,6 +2272,14 @@
                 ctx.beginPath();
                 ctx.roundRect(x + 2, y + 2, (width - 4) * ratio, height - 4, 3);
                 ctx.fill();
+            }
+
+            if (centerText !== null) {
+                ctx.font = "bold 10px 'M PLUS Rounded 1c', sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = textColor;
+                ctx.fillText(centerText, x + width / 2, y + height / 2);
             }
             ctx.restore();
         }
@@ -2160,7 +2363,7 @@
 
             carrots.forEach(c => {
                 if (c.timer > c.life - 90 && Math.floor(c.timer / 6) % 2 === 0) return;
-                drawCarrot(c.x, c.y, Math.sin(c.timer * 0.1) * 3);
+                drawCarrot(c.x, c.y, Math.sin(c.timer * 0.1) * 3, c.isGolden);
             });
 
             enemies.forEach(drawHedgehog);
@@ -2273,17 +2476,9 @@
                 });
             }
 
-            drawStatusBar(18, 18, 115, 14, hp, maxHp, "ビーバーHP", "#ff3344");
+            drawStatusBar(18, 18, 115, 14, hp, maxHp, "ビーバーHP", "#ff3344", String(Math.ceil(hp)), "#ffffff");
             let damBarColor = damHp <= 30 ? "#ff6600" : "#33cc44";
-            drawStatusBar(18, 48, 115, 14, damHp, maxDamHp, "ダム耐久度", damBarColor);
-
-            ctx.save();
-            ctx.font = "bold 10px 'M PLUS Rounded 1c', sans-serif";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillStyle = nightMode ? "#ffffff" : "#000000";
-            ctx.fillText(Math.ceil(damHp) + "%", 18 + 57, 48 + 7);
-            ctx.restore();
+            drawStatusBar(18, 48, 115, 14, damHp, maxDamHp, "ダム耐久度", damBarColor, Math.ceil(damHp) + "%", nightMode ? "#ffffff" : "#000000");
 
             ctx.fillStyle = nightMode ? "#fff" : "#000";
             ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
@@ -2311,6 +2506,42 @@
                 ctx.font = "bold 12px 'M PLUS Rounded 1c', sans-serif";
                 ctx.textAlign = "center";
                 ctx.fillText(`ダム耐久 ${Math.ceil(damHp)}% ▶`, canvas.width - 72, 90);
+                ctx.restore();
+            }
+
+            if (!gameStarted && !gameOver) {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.save();
+                ctx.textAlign = "center";
+                ctx.font = "bold 30px 'M PLUS Rounded 1c', sans-serif";
+                ctx.fillStyle = "#ffcc00";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 6;
+                ctx.strokeText("「ゲームスタート」を押して開始！", canvas.width / 2, canvas.height / 2 - 12);
+                ctx.fillText("「ゲームスタート」を押して開始！", canvas.width / 2, canvas.height / 2 - 12);
+
+                ctx.font = "bold 16px 'M PLUS Rounded 1c', sans-serif";
+                ctx.fillStyle = "#ffffff";
+                ctx.lineWidth = 4;
+                ctx.strokeText("別タブを開いている間はタイムカウントが自動で止まります", canvas.width / 2, canvas.height / 2 + 24);
+                ctx.fillText("別タブを開いている間はタイムカウントが自動で止まります", canvas.width / 2, canvas.height / 2 + 24);
+                ctx.restore();
+            }
+
+            if (gameStarted && !gameOver && isTabPaused) {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.save();
+                ctx.textAlign = "center";
+                ctx.font = "bold 28px 'M PLUS Rounded 1c', sans-serif";
+                ctx.fillStyle = "#00ffff";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 5;
+                ctx.strokeText("⏸ 一時停止中（タブ復帰で再開）", canvas.width / 2, canvas.height / 2);
+                ctx.fillText("⏸ 一時停止中（タブ復帰で再開）", canvas.width / 2, canvas.height / 2);
                 ctx.restore();
             }
 
@@ -2365,15 +2596,15 @@
             }
         }
 
-        function loop() {
-            update();
+        function loop(now) {
+            update(now);
             draw();
             requestAnimationFrame(loop);
         }
 
         window.addEventListener("DOMContentLoaded", async () => {
             restartGame();
-            loop();
+            requestAnimationFrame(loop);
             try {
                 let ranking = await getCloudRanking();
                 updateRankingDisplay(ranking);
