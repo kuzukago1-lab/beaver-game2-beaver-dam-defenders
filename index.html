@@ -279,7 +279,7 @@
 
     <!-- ランキング＆記録登録モーダル -->
     <div id="rankingModal">
-        <h3 id="modalTitle">🏆 サバイバル生存ランキング</h3>
+        <h3 id="modalTitle">🏆 サバイバル防衛ランキング</h3>
         <div id="resultMessage" style="display:none; background: #332200; border: 2px solid #ffcc00; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; color: #ffff66;"></div>
 
         <div id="nameEntryArea" style="margin-bottom: 10px; display:none;">
@@ -359,7 +359,7 @@
         }
 
         /* =========================================================
-           3. クラウドランキング（生存時間の降順＝長いほど上位）
+           3. クラウドランキング（防衛時間の降順＝長いほど上位）
            ========================================================= */
         async function getCloudRanking() {
             try {
@@ -968,14 +968,14 @@
 
             if (showEntry && gameOver && survivalTimeMs > 0) {
                 let currentRank = ranking.filter(r => (r.survivalMs || 0) > survivalTimeMs).length + 1;
-                resMsg.innerHTML = `🛡️ 生存記録: <b>${finalTimeString}</b>（撃退 ${killCount}匹 / 補修 ${repairCount}回）<br>いま登録すると <span style="font-size:19px; color:#ff4444;">【 ${currentRank}位 】</span> です！`;
+                resMsg.innerHTML = `🛡️ 防衛記録: <b>${finalTimeString}</b>（撃退 ${killCount}匹 / 補修 ${repairCount}回）<br>いま登録すると <span style="font-size:19px; color:#ff4444;">【 ${currentRank}位 】</span> です！`;
                 entryArea.style.display = "block";
                 resMsg.style.display = "block";
                 document.getElementById("modalTitle").innerText = "🛡️ 防衛戦リザルト";
             } else {
                 entryArea.style.display = "none";
                 resMsg.style.display = "none";
-                document.getElementById("modalTitle").innerText = "🏆 サバイバル生存ランキング";
+                document.getElementById("modalTitle").innerText = "🏆 サバイバル防衛ランキング";
             }
 
             let regBtn = document.getElementById("registerBtn");
@@ -2597,8 +2597,8 @@
 
                 ctx.fillStyle = "#ffff66";
                 ctx.font = "bold 20px 'M PLUS Rounded 1c', sans-serif";
-                ctx.strokeText(`生存タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 235);
-                ctx.fillText(`生存タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 235);
+                ctx.strokeText(`防衛タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 235);
+                ctx.fillText(`防衛タイム: ${finalTimeString} / 撃退数: ${killCount}匹`, canvas.width / 2, 235);
                 ctx.restore();
             }
         }
