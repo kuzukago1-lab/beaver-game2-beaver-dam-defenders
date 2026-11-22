@@ -553,15 +553,8 @@
         }
 
         /* =========================================================
-           1c. 隠し要素（エンコード復元ヘルパー＆テストモード）
-           ※ 文字列や条件値を直接書かずに復元・照合しています
+           1c. 隠し要素（キーワード復元＆テストモード）
            ========================================================= */
-        const _kShift = 7;
-        const _kBlob = [
-            235 ^ _kShift, 131 ^ _kShift, 176 ^ _kShift,
-            235 ^ _kShift, 131 ^ _kShift, 188 ^ _kShift,
-            235 ^ _kShift, 131 ^ _kShift, 179 ^ _kShift
-        ];
         const _cTable = [
             [114, 101, 115, 116, 97, 114, 116],
             [108, 101, 102, 116],
@@ -572,8 +565,7 @@
         const _cMap = [0, 0, 1, 2, 1, 2, 3, 3, 4];
 
         function _decKey() {
-            const bytes = new Uint8Array(_kBlob.map(b => b ^ _kShift));
-            return new TextDecoder().decode(bytes);
+            return String.fromCharCode(0x30d0, 0x30fc, 0x30d3, 0x30fc);
         }
 
         function _getCmdSeq() {
