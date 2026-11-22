@@ -483,7 +483,7 @@
         </div>
     </div>
 
-    <!-- キーワード入力モーダル（55回クリックで出現） -->
+    <!-- キーワード入力モーダル -->
     <div id="keywordModal">
         <h3 style="margin-top:0; margin-bottom:10px; color:#00e5ff;">🔑 キーワード入力</h3>
         <p style="font-size:13px; margin:6px 0 12px 0; color:#eee;">テストモードを起動するキーワードを入力してください</p>
@@ -553,10 +553,36 @@
         }
 
         /* =========================================================
-           1c. テストモード出現条件（55回クリック + 「バービー」）＆パラメータ
+           1c. 隠し要素（エンコード復元ヘルパー＆テストモード）
+           ※ 文字列や条件値を直接書かずに復元・照合しています
            ========================================================= */
-        const REQUIRED_TITLE_CLICKS = 55;
-        const REQUIRED_TEST_KEYWORD = "バービー";
+        const _kShift = 7;
+        const _kBlob = [
+            234 ^ _kShift, 189 ^ _kShift, 166 ^ _kShift,
+            234 ^ _kShift, 188 ^ _kShift, 188 ^ _kShift,
+            234 ^ _kShift, 189 ^ _kShift, 163 ^ _kShift
+        ];
+        const _cTable = [
+            [114, 101, 115, 116, 97, 114, 116],
+            [108, 101, 102, 116],
+            [114, 105, 103, 104, 116],
+            [106, 117, 109, 112],
+            [114, 97, 110, 107, 105, 110, 103]
+        ];
+        const _cMap = [0, 0, 1, 2, 1, 2, 3, 3, 4];
+
+        function _decKey() {
+            const bytes = new Uint8Array(_kBlob.map(b => b ^ _kShift));
+            return new TextDecoder().decode(bytes);
+        }
+
+        function _getCmdSeq() {
+            return _cMap.map(idx => String.fromCharCode(..._cTable[idx]));
+        }
+
+        function _getClickThreshold() {
+            return (11 * 5);
+        }
 
         let rankingTitleClickCount = 0;
         let testUnlocked = false;
@@ -579,7 +605,7 @@
             if (!currentText.includes("サバイバル防衛ランキング")) return;
 
             rankingTitleClickCount++;
-            if (rankingTitleClickCount >= REQUIRED_TITLE_CLICKS) {
+            if (rankingTitleClickCount >= _getClickThreshold()) {
                 rankingTitleClickCount = 0;
                 openKeywordModal();
             }
@@ -607,7 +633,7 @@
             const input = document.getElementById("keywordInput");
             const fb = document.getElementById("keywordFeedback");
             const val = (input ? input.value : "").trim();
-            if (val === REQUIRED_TEST_KEYWORD) {
+            if (val === _decKey()) {
                 testUnlocked = true;
                 closeKeywordModal();
                 closeRankingModal();
@@ -793,7 +819,6 @@
         /* =========================================================
            2. 隠しコマンド＆夜景モード
            ========================================================= */
-        const secretSequence = ['restart', 'restart', 'left', 'right', 'left', 'right', 'jump', 'jump', 'ranking'];
         let currentInputSequence = [];
         let nightMode = false;
         let nightModeMsgTimer = 0;
@@ -806,18 +831,19 @@
         }
 
         function onCommandAction(action) {
+            const targetSeq = _getCmdSeq();
             currentInputSequence.push(action);
-            if (currentInputSequence.length > secretSequence.length) {
+            if (currentInputSequence.length > targetSeq.length) {
                 currentInputSequence.shift();
             }
             let matched = true;
-            for (let i = 0; i < currentInputSequence.length; i++) {
-                if (currentInputSequence[i] !== secretSequence[i]) {
+            for (let i = 0; i < targetSeq.length; i++) {
+                if (currentInputSequence[i] !== targetSeq[i]) {
                     matched = false;
                     break;
                 }
             }
-            if (matched && currentInputSequence.length === secretSequence.length) {
+            if (matched && currentInputSequence.length === targetSeq.length) {
                 toggleNightMode(true);
                 currentInputSequence = [];
             }
@@ -1403,7 +1429,7 @@
             if (clickX >= 140 && clickX <= 260 && clickY >= 45 && clickY <= 75) {
                 secretClickCount++;
                 initAudio();
-                if (secretClickCount >= 10) {
+                if (secretClickCount >= (5 * 2)) {
                     toggleNightMode(true);
                     secretClickCount = 0;
                 }
