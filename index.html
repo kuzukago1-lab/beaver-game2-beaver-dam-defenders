@@ -525,6 +525,9 @@
         }
 
         const rankingCollectionName = "survival_rankings";
+        const playLogCollectionName = "survival_play_logs";
+        const sessionId = "sess_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+        let tabPauseCount = 0;
 
         /* =========================================================
            1b. 1分ごとのビーバーランク定義（0分〜10分）
@@ -842,7 +845,7 @@
         }
 
         /* =========================================================
-           3. クラウドランキング（防衛時間の降順＝長いほど上位）
+           3. クラウドランキング＆プレイログ保存
            ========================================================= */
         async function getCloudRanking() {
             try {
@@ -881,6 +884,64 @@
                 date: dateStr,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
+        }
+
+        function hasCustomTestParams() {
+            return (
+                testParams.damWearMult !== 1.0 ||
+                testParams.enemySpeedMult !== 1.0 ||
+                testParams.fixedEnemyInterval !== 0 ||
+                testParams.beaverSpeed !== 4.8 ||
+                testParams.tailHpCost !== 2 ||
+                testParams.tailReach !== 64
+            );
+        }
+
+        async function savePlayLog(playerName) {
+            const elapsedSec = Math.max(0.001, survivalTimeMs / 1000);
+            const killsPerSec = Number((killCount / elapsedSec).toFixed(2));
+            const repairsPerSec = Number((repairCount / elapsedSec).toFixed(2));
+            const isSuspiciousRate =
+                (!testUnlocked && !invincibleMode) &&
+                (killCount / elapsedSec > 2.5 || repairCount / elapsedSec > 1.5);
+
+            const logData = {
+                eventType: "name_registration_gameover",
+                sessionId: sessionId,
+                playerName: playerName,
+                survivalMs: Math.round(survivalTimeMs),
+                survivalStr: finalTimeString || formatTime(survivalTimeMs),
+                kills: killCount,
+                repairs: repairCount,
+                killsPerSec: killsPerSec,
+                repairsPerSec: repairsPerSec,
+                waveLevel: waveLevel,
+                rankName: getRankNameFromMs(survivalTimeMs),
+                gameOverReason: gameOverReason || "",
+                damHpAtEnd: Math.ceil(damHp),
+                hpAtEnd: Math.ceil(hp),
+                nightModeAtEnd: nightMode,
+                tabPauseCount: tabPauseCount,
+                testUnlocked: testUnlocked,
+                invincibleMode: invincibleMode,
+                usedCustomParams: hasCustomTestParams(),
+                testParamsSnapshot: testUnlocked ? { ...testParams } : null,
+                isSuspiciousRate: isSuspiciousRate,
+                clientInfo: {
+                    platform: navigator.platform || "",
+                    language: navigator.language || "",
+                    viewport: `${window.innerWidth}x${window.innerHeight}`,
+                    userAgent: navigator.userAgent || "",
+                    href: window.location.href
+                },
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection(playLogCollectionName).add(logData);
+            } catch (e) {
+                console.warn("プレイログ保存エラー:", e);
+            }
         }
 
         function updateRankingDisplay(ranking) {
@@ -1283,6 +1344,7 @@
             keys = {};
             if (timerRunning && !gameOver && !isTabPaused) {
                 isTabPaused = true;
+                tabPauseCount++;
                 lastTickTime = 0;
             }
         }
@@ -1463,6 +1525,7 @@
             gameStarted = true;
             timerRunning = true;
             isTabPaused = false;
+            tabPauseCount = 0;
             lastTickTime = performance.now();
             survivalTimeMs = 0;
             currentRankIndex = 0;
@@ -1547,6 +1610,7 @@
 
             try {
                 await saveCloudScore(playerName, survivalTimeMs, finalTimeString, killCount, repairCount);
+                await savePlayLog(playerName);
                 let ranking = await getCloudRanking();
                 let userRank = ranking.filter(r => (r.survivalMs || 0) > survivalTimeMs).length + 1;
 
@@ -1646,6 +1710,7 @@
 
             timerRunning = false;
             isTabPaused = false;
+            tabPauseCount = 0;
             lastTickTime = 0;
             survivalTimeMs = 0;
             finalTimeString = "";
