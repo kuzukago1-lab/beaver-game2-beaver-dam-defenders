@@ -57,6 +57,31 @@
             height: auto;
             cursor: default;
         }
+        .sound-toggle-btn {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 20;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-weight: 800;
+            background-color: rgba(20, 28, 38, 0.88);
+            color: #7fe8ff;
+            border: 2px solid #7fe8ff;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+            outline: none;
+        }
+        .sound-toggle-btn:hover {
+            background-color: rgba(35, 48, 65, 0.95);
+        }
+        .sound-toggle-btn.muted {
+            background-color: rgba(45, 25, 28, 0.88);
+            color: #ff9aa9;
+            border-color: #ff6e8a;
+        }
         .mobile-controls {
             display: flex;
             justify-content: space-between;
@@ -372,6 +397,7 @@
         <span class="title-line">サバイバル防衛戦</span>
     </h2>
     <div class="game-container">
+        <button class="sound-toggle-btn" id="soundToggleBtn" onclick="toggleSoundEnabled()">🔊 SOUND: ON</button>
         <canvas id="gameCanvas" width="800" height="400"></canvas>
     </div>
 
@@ -728,7 +754,7 @@
             survivalTimeMs = rankIdx * 60000;
             currentRankIndex = rankIdx;
             rankUpBannerText = BEAVER_RANKS[rankIdx];
-            rankUpBannerTimer = 120;
+            rankUpBannerTimer = 180;
             waveLevel = 1 + Math.floor(Math.floor(survivalTimeMs / 1000) / 15);
             highlightActiveRankChip();
             playRankUpSound();
@@ -744,7 +770,7 @@
             if (newIdx !== currentRankIndex) {
                 currentRankIndex = newIdx;
                 rankUpBannerText = BEAVER_RANKS[currentRankIndex];
-                rankUpBannerTimer = 120;
+                rankUpBannerTimer = 180;
             }
             waveLevel = 1 + Math.floor(Math.floor(survivalTimeMs / 1000) / 15);
             highlightActiveRankChip();
@@ -970,22 +996,66 @@
         }
 
         /* =========================================================
-           4. Web Audio API 効果音・BGM
+           4. Web Audio API 効果音・BGM（音量50%アップ・同時撃退SE最大2回）
            ========================================================= */
         let audioCtx = null;
+        let masterGain = null;
+        let soundEnabled = true;
+        const SOUND_VOLUME_BOOST = 1.5; // 50%アップ
+        let frameTailHitCount = 0; // 同一フレーム内の撃退音再生回数（最大2回）
+
+        function updateSoundButtonUI() {
+            const btn = document.getElementById("soundToggleBtn");
+            if (!btn) return;
+            if (soundEnabled) {
+                btn.classList.remove("muted");
+                btn.innerText = "🔊 SOUND: ON";
+            } else {
+                btn.classList.add("muted");
+                btn.innerText = "🔇 SOUND: OFF";
+            }
+        }
+
+        function toggleSoundEnabled() {
+            soundEnabled = !soundEnabled;
+            updateSoundButtonUI();
+            if (soundEnabled) {
+                initAudio();
+                if (masterGain && audioCtx) {
+                    masterGain.gain.setValueAtTime(SOUND_VOLUME_BOOST, audioCtx.currentTime);
+                }
+                playWoodSound();
+            } else if (masterGain && audioCtx) {
+                masterGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
+            }
+            if (document.activeElement) document.activeElement.blur();
+        }
 
         function initAudio() {
             if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                audioCtx = new Ctx();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.setValueAtTime(soundEnabled ? SOUND_VOLUME_BOOST : 0.0, audioCtx.currentTime);
+                masterGain.connect(audioCtx.destination);
             }
-            if (audioCtx.state === 'suspended') {
+            if (masterGain && audioCtx) {
+                masterGain.gain.setValueAtTime(soundEnabled ? SOUND_VOLUME_BOOST : 0.0, audioCtx.currentTime);
+            }
+            if (soundEnabled && audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
         }
 
+        function canPlaySound() {
+            return soundEnabled;
+        }
+
         function playRankUpSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let notes = [
                 { f: 523.25, t: 0.0,  d: 0.09 },
                 { f: 659.25, t: 0.08, d: 0.09 },
@@ -1000,15 +1070,16 @@
                 gain.gain.setValueAtTime(0.16, audioCtx.currentTime + n.t);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + n.t + n.d);
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
                 osc.start(audioCtx.currentTime + n.t);
                 osc.stop(audioCtx.currentTime + n.t + n.d);
             });
         }
 
         function playStartSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let notes = [
                 { f: 440.00, t: 0.0,  d: 0.08 },
                 { f: 554.37, t: 0.07, d: 0.08 },
@@ -1023,15 +1094,16 @@
                 gain.gain.setValueAtTime(0.14, audioCtx.currentTime + n.t);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + n.t + n.d);
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
                 osc.start(audioCtx.currentTime + n.t);
                 osc.stop(audioCtx.currentTime + n.t + n.d);
             });
         }
 
         function playGameOverSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let dropNotes = [
                 { f: 330.00, t: 0.0,  d: 0.18 },
                 { f: 293.66, t: 0.15, d: 0.18 },
@@ -1046,15 +1118,16 @@
                 gain.gain.setValueAtTime(0.16, audioCtx.currentTime + n.t);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + n.t + n.d);
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
                 osc.start(audioCtx.currentTime + n.t);
                 osc.stop(audioCtx.currentTime + n.t + n.d);
             });
         }
 
         function playJumpSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let osc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
             osc.type = 'square';
@@ -1063,14 +1136,15 @@
             gain.gain.setValueAtTime(0.11, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(masterGain);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.12);
         }
 
         function playTailSwingSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let osc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
             osc.type = 'triangle';
@@ -1079,14 +1153,18 @@
             gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.14);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(masterGain);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.14);
         }
 
         function playTailHitSound() {
+            if (!canPlaySound()) return;
+            // 複数同時撃退でも音量は最大2匹分まで
+            if (frameTailHitCount >= 2) return;
+            frameTailHitCount++;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let osc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
             osc.type = 'square';
@@ -1095,14 +1173,15 @@
             gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.16);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(masterGain);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.16);
         }
 
         function playWoodSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let osc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
             osc.type = 'triangle';
@@ -1111,14 +1190,15 @@
             gain.gain.setValueAtTime(0.14, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(masterGain);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.15);
         }
 
         function playBuildSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let osc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
             osc.type = 'sine';
@@ -1128,14 +1208,15 @@
             gain.gain.setValueAtTime(0.14, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(masterGain);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.25);
         }
 
         function playDamageSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let osc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
             osc.type = 'sawtooth';
@@ -1144,14 +1225,15 @@
             gain.gain.setValueAtTime(0.16, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(masterGain);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.25);
         }
 
         function playHealSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let notes = [523.25, 659.25, 783.99, 1046.50];
             notes.forEach((freq, idx) => {
                 let osc = audioCtx.createOscillator();
@@ -1161,15 +1243,16 @@
                 gain.gain.setValueAtTime(0.11, audioCtx.currentTime + idx * 0.06);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.06 + 0.12);
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
                 osc.start(audioCtx.currentTime + idx * 0.06);
                 osc.stop(audioCtx.currentTime + idx * 0.06 + 0.12);
             });
         }
 
         function playGoldenHealSound() {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
             notes.forEach((freq, idx) => {
                 let osc = audioCtx.createOscillator();
@@ -1179,7 +1262,7 @@
                 gain.gain.setValueAtTime(0.16, audioCtx.currentTime + idx * 0.055);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.055 + 0.18);
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
                 osc.start(audioCtx.currentTime + idx * 0.055);
                 osc.stop(audioCtx.currentTime + idx * 0.055 + 0.18);
             });
@@ -1193,7 +1276,7 @@
         ];
 
         function updateBGM() {
-            if (!timerRunning || gameOver || isTabPaused) return;
+            if (!canPlaySound() || !timerRunning || gameOver || isTabPaused) return;
             bgmTimer++;
             if (bgmTimer >= 12) {
                 bgmTimer = 0;
@@ -1204,8 +1287,9 @@
         }
 
         function playBgmNote(freq, duration) {
+            if (!canPlaySound()) return;
             initAudio();
-            if (!audioCtx) return;
+            if (!audioCtx || !masterGain) return;
             let osc = audioCtx.createOscillator();
             let gain = audioCtx.createGain();
             osc.type = 'triangle';
@@ -1213,7 +1297,7 @@
             gain.gain.setValueAtTime(0.035, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(masterGain);
             osc.start();
             osc.stop(audioCtx.currentTime + duration);
         }
@@ -2564,6 +2648,8 @@
         }
 
         function update(now) {
+            frameTailHitCount = 0;
+
             if (nightModeMsgTimer > 0) nightModeMsgTimer--;
             if (rankUpBannerTimer > 0) rankUpBannerTimer--;
 
@@ -2605,7 +2691,7 @@
                 if (newRankIndex > currentRankIndex) {
                     currentRankIndex = newRankIndex;
                     rankUpBannerText = BEAVER_RANKS[currentRankIndex];
-                    rankUpBannerTimer = 150;
+                    rankUpBannerTimer = 180; // 約3秒表示
                     highlightActiveRankChip();
                     playRankUpSound();
                 }
@@ -3213,9 +3299,9 @@
                 });
             }
 
-            drawStatusBar(16, 20, 132, 20, hp, maxHp, "ビーバーHP", "#ff3344", String(Math.ceil(hp)), "#ffffff");
+            drawStatusBar(16, 46, 132, 20, hp, maxHp, "ビーバーHP", "#ff3344", String(Math.ceil(hp)), "#ffffff");
             let damBarColor = damHp <= 30 ? "#ff6600" : "#33cc44";
-            drawStatusBar(16, 62, 132, 20, damHp, maxDamHp, "ダム耐久度", damBarColor, Math.ceil(damHp) + "%", "#ffffff");
+            drawStatusBar(16, 88, 132, 20, damHp, maxDamHp, "ダム耐久度", damBarColor, Math.ceil(damHp) + "%", "#ffffff");
 
             let activeRankName = BEAVER_RANKS[activeRankIdx];
             ctx.save();
@@ -3226,18 +3312,38 @@
 
             let woodText = `所持丸太: ${woodCount} / 4`;
             let waveKillText = `WAVE ${waveLevel}  |  撃退: ${killCount}匹`;
-            let rankLabelText = `ランク: ${activeRankName}${invincibleMode ? " [無敵]" : ""}`;
 
-            ctx.strokeText(woodText, 160, 32);
+            ctx.strokeText(woodText, 160, 58);
             ctx.fillStyle = nightMode ? "#fff" : "#111";
-            ctx.fillText(woodText, 160, 32);
+            ctx.fillText(woodText, 160, 58);
 
-            ctx.strokeText(waveKillText, 160, 52);
-            ctx.fillText(waveKillText, 160, 52);
+            ctx.strokeText(waveKillText, 160, 78);
+            ctx.fillText(waveKillText, 160, 78);
 
-            ctx.strokeText(rankLabelText, 160, 74);
-            ctx.fillStyle = invincibleMode ? "#ffab00" : (activeRankIdx >= 10 ? "#40e0ff" : (activeRankIdx >= 6 ? "#ffe033" : (nightMode ? "#7fe8ff" : "#004d99")));
-            ctx.fillText(rankLabelText, 160, 74);
+            // WAVE下の1分ごとのランク表示（大きく見やすく強調）
+            let rankLabelText = `🏅 ${activeRankName}${invincibleMode ? " [無敵]" : ""}`;
+            let rankFill = invincibleMode
+                ? "#ffab00"
+                : (activeRankIdx >= 10 ? "#66f2ff" : (activeRankIdx >= 6 ? "#ffe54c" : (nightMode ? "#8cf0ff" : "#003d82")));
+            ctx.font = "bold 15px 'M PLUS Rounded 1c', sans-serif";
+            let rankBoxW = Math.min(255, ctx.measureText(rankLabelText).width + 18);
+            let rankBoxX = 158;
+            let rankBoxY = 85;
+            let rankBoxH = 25;
+
+            ctx.fillStyle = nightMode ? "rgba(10, 18, 32, 0.78)" : "rgba(255, 255, 255, 0.86)";
+            ctx.strokeStyle = nightMode ? "rgba(127, 232, 255, 0.65)" : "rgba(17, 17, 17, 0.35)";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(rankBoxX, rankBoxY, rankBoxW, rankBoxH, 7);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = nightMode ? "#000000" : "rgba(255, 255, 255, 0.9)";
+            ctx.lineWidth = 3;
+            ctx.strokeText(rankLabelText, rankBoxX + 8, rankBoxY + 17);
+            ctx.fillStyle = rankFill;
+            ctx.fillText(rankLabelText, rankBoxX + 8, rankBoxY + 17);
             ctx.restore();
 
             ctx.save();
@@ -3263,18 +3369,32 @@
                 ctx.restore();
             }
 
+            // ランク上昇時のバナー（約3秒表示・邪魔になりにくいサイズと上配置）
             if (rankUpBannerTimer > 0) {
                 let alpha = Math.min(1, rankUpBannerTimer / 25);
+                let bannerStr = `🎉 ランクアップ！${rankUpBannerText}！`;
                 ctx.save();
                 ctx.globalAlpha = alpha;
+                ctx.font = "bold 22px 'M PLUS Rounded 1c', sans-serif";
+                let bannerCenterX = canvas.width / 2 + 80;
+                let bannerY = 128;
+                let textW = ctx.measureText(bannerStr).width;
+                let boxW = Math.min(430, textW + 28);
+
+                ctx.fillStyle = "rgba(18, 22, 30, 0.78)";
+                ctx.strokeStyle = "rgba(255, 204, 0, 0.85)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(bannerCenterX - boxW / 2, bannerY - 22, boxW, 32, 10);
+                ctx.fill();
+                ctx.stroke();
+
                 ctx.textAlign = "center";
-                ctx.font = "bold 26px 'M PLUS Rounded 1c', sans-serif";
-                ctx.fillStyle = "#ffcc00";
+                ctx.fillStyle = "#ffe047";
                 ctx.strokeStyle = "#000000";
-                ctx.lineWidth = 5;
-                let bannerStr = `🎉 ランクアップ！${rankUpBannerText}！ 🎉`;
-                ctx.strokeText(bannerStr, canvas.width / 2 + 50, 145);
-                ctx.fillText(bannerStr, canvas.width / 2 + 50, 145);
+                ctx.lineWidth = 4;
+                ctx.strokeText(bannerStr, bannerCenterX, bannerY + 2);
+                ctx.fillText(bannerStr, bannerCenterX, bannerY + 2);
                 ctx.restore();
             }
 
@@ -3322,8 +3442,8 @@
                 ctx.strokeStyle = "#000000";
                 ctx.lineWidth = 4;
                 let modeText = nightMode ? "🌙 夜がやってきた！気をつけて！ 🌙" : "☀️ 朝日が昇った！ ☀️";
-                ctx.strokeText(modeText, canvas.width / 2, 110);
-                ctx.fillText(modeText, canvas.width / 2, 110);
+                ctx.strokeText(modeText, canvas.width / 2, 165);
+                ctx.fillText(modeText, canvas.width / 2, 165);
                 ctx.restore();
             }
 
@@ -3377,6 +3497,7 @@
         }
 
         window.addEventListener("DOMContentLoaded", async () => {
+            updateSoundButtonUI();
             restartGame();
             requestAnimationFrame(loop);
             try {
