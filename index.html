@@ -60,7 +60,7 @@
         .sound-toggle-btn {
             position: absolute;
             top: 8px;
-            left: 8px;
+            right: 8px;
             z-index: 20;
             padding: 5px 10px;
             font-size: 12px;
@@ -424,7 +424,7 @@
         </div>
     </div>
 
-    <!-- テストモードパネル（隠しコマンド解除後に出現） -->
+    <!-- テストモードパネル（初期非表示） -->
     <div id="testPanel">
         <div class="test-header">
             <span class="test-title">🧪 テストモード（ランク＆オーラ確認 / パラメータ調整）</span>
@@ -1001,8 +1001,8 @@
         let audioCtx = null;
         let masterGain = null;
         let soundEnabled = true;
-        const SOUND_VOLUME_BOOST = 1.5; // 50%アップ
-        let frameTailHitCount = 0; // 同一フレーム内の撃退音再生回数（最大2回）
+        const SOUND_VOLUME_BOOST = 1.5;
+        let frameTailHitCount = 0;
 
         function updateSoundButtonUI() {
             const btn = document.getElementById("soundToggleBtn");
@@ -1160,7 +1160,6 @@
 
         function playTailHitSound() {
             if (!canPlaySound()) return;
-            // 複数同時撃退でも音量は最大2匹分まで
             if (frameTailHitCount >= 2) return;
             frameTailHitCount++;
             initAudio();
@@ -2691,7 +2690,7 @@
                 if (newRankIndex > currentRankIndex) {
                     currentRankIndex = newRankIndex;
                     rankUpBannerText = BEAVER_RANKS[currentRankIndex];
-                    rankUpBannerTimer = 180; // 約3秒表示
+                    rankUpBannerTimer = 180;
                     highlightActiveRankChip();
                     playRankUpSound();
                 }
@@ -3313,26 +3312,27 @@
             let woodText = `所持丸太: ${woodCount} / 4`;
             let waveKillText = `WAVE ${waveLevel}  |  撃退: ${killCount}匹`;
 
-            ctx.strokeText(woodText, 160, 58);
+            ctx.strokeText(woodText, 160, 56);
             ctx.fillStyle = nightMode ? "#fff" : "#111";
-            ctx.fillText(woodText, 160, 58);
+            ctx.fillText(woodText, 160, 56);
 
-            ctx.strokeText(waveKillText, 160, 78);
-            ctx.fillText(waveKillText, 160, 78);
+            ctx.strokeText(waveKillText, 160, 76);
+            ctx.fillText(waveKillText, 160, 76);
 
-            // WAVE下の1分ごとのランク表示（大きく見やすく強調）
+            // WAVE下の1分ごとのランク表示（長いランク名や[無敵]も枠内に収まるよう拡張）
             let rankLabelText = `🏅 ${activeRankName}${invincibleMode ? " [無敵]" : ""}`;
             let rankFill = invincibleMode
                 ? "#ffab00"
                 : (activeRankIdx >= 10 ? "#66f2ff" : (activeRankIdx >= 6 ? "#ffe54c" : (nightMode ? "#8cf0ff" : "#003d82")));
-            ctx.font = "bold 15px 'M PLUS Rounded 1c', sans-serif";
-            let rankBoxW = Math.min(255, ctx.measureText(rankLabelText).width + 18);
+            ctx.font = "bold 14px 'M PLUS Rounded 1c', sans-serif";
+            let measuredRankW = ctx.measureText(rankLabelText).width;
+            let rankBoxW = Math.min(395, Math.max(180, measuredRankW + 22));
             let rankBoxX = 158;
-            let rankBoxY = 85;
-            let rankBoxH = 25;
+            let rankBoxY = 84;
+            let rankBoxH = 28;
 
-            ctx.fillStyle = nightMode ? "rgba(10, 18, 32, 0.78)" : "rgba(255, 255, 255, 0.86)";
-            ctx.strokeStyle = nightMode ? "rgba(127, 232, 255, 0.65)" : "rgba(17, 17, 17, 0.35)";
+            ctx.fillStyle = nightMode ? "rgba(10, 18, 32, 0.82)" : "rgba(255, 255, 255, 0.88)";
+            ctx.strokeStyle = nightMode ? "rgba(127, 232, 255, 0.7)" : "rgba(17, 17, 17, 0.38)";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.roundRect(rankBoxX, rankBoxY, rankBoxW, rankBoxH, 7);
@@ -3341,19 +3341,19 @@
 
             ctx.strokeStyle = nightMode ? "#000000" : "rgba(255, 255, 255, 0.9)";
             ctx.lineWidth = 3;
-            ctx.strokeText(rankLabelText, rankBoxX + 8, rankBoxY + 17);
+            ctx.strokeText(rankLabelText, rankBoxX + 10, rankBoxY + 19);
             ctx.fillStyle = rankFill;
-            ctx.fillText(rankLabelText, rankBoxX + 8, rankBoxY + 17);
+            ctx.fillText(rankLabelText, rankBoxX + 10, rankBoxY + 19);
             ctx.restore();
 
             ctx.save();
             ctx.textAlign = "center";
-            ctx.font = "bold 25px 'M PLUS Rounded 1c', sans-serif";
+            ctx.font = "bold 24px 'M PLUS Rounded 1c', sans-serif";
             ctx.fillStyle = "#ffff33";
             ctx.strokeStyle = "#000000";
             ctx.lineWidth = 5;
-            ctx.strokeText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 100, 36);
-            ctx.fillText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 100, 36);
+            ctx.strokeText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 55, 34);
+            ctx.fillText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 55, 34);
             ctx.restore();
 
             if (damX - cameraX > canvas.width - 30) {
@@ -3369,23 +3369,23 @@
                 ctx.restore();
             }
 
-            // ランク上昇時のバナー（約3秒表示・邪魔になりにくいサイズと上配置）
+            // ランク上昇時のバナー（長いランク名でも枠からはみ出ない幅・サイズに調整）
             if (rankUpBannerTimer > 0) {
                 let alpha = Math.min(1, rankUpBannerTimer / 25);
                 let bannerStr = `🎉 ランクアップ！${rankUpBannerText}！`;
                 ctx.save();
                 ctx.globalAlpha = alpha;
-                ctx.font = "bold 22px 'M PLUS Rounded 1c', sans-serif";
-                let bannerCenterX = canvas.width / 2 + 80;
-                let bannerY = 128;
+                ctx.font = "bold 20px 'M PLUS Rounded 1c', sans-serif";
                 let textW = ctx.measureText(bannerStr).width;
-                let boxW = Math.min(430, textW + 28);
+                let boxW = Math.min(620, textW + 36);
+                let bannerCenterX = Math.min(canvas.width - boxW / 2 - 12, Math.max(boxW / 2 + 12, canvas.width / 2 + 75));
+                let bannerY = 136;
 
-                ctx.fillStyle = "rgba(18, 22, 30, 0.78)";
-                ctx.strokeStyle = "rgba(255, 204, 0, 0.85)";
+                ctx.fillStyle = "rgba(18, 22, 30, 0.84)";
+                ctx.strokeStyle = "rgba(255, 204, 0, 0.9)";
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.roundRect(bannerCenterX - boxW / 2, bannerY - 22, boxW, 32, 10);
+                ctx.roundRect(bannerCenterX - boxW / 2, bannerY - 22, boxW, 34, 10);
                 ctx.fill();
                 ctx.stroke();
 
@@ -3442,8 +3442,8 @@
                 ctx.strokeStyle = "#000000";
                 ctx.lineWidth = 4;
                 let modeText = nightMode ? "🌙 夜がやってきた！気をつけて！ 🌙" : "☀️ 朝日が昇った！ ☀️";
-                ctx.strokeText(modeText, canvas.width / 2, 165);
-                ctx.fillText(modeText, canvas.width / 2, 165);
+                ctx.strokeText(modeText, canvas.width / 2, 178);
+                ctx.fillText(modeText, canvas.width / 2, 178);
                 ctx.restore();
             }
 
