@@ -59,17 +59,19 @@
         }
         .sound-toggle-btn {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 6px;
+            right: 6px;
             z-index: 20;
-            padding: 5px 10px;
-            font-size: 12px;
-            font-family: 'M PLUS Rounded 1c', sans-serif;
-            font-weight: 800;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background-color: rgba(20, 28, 38, 0.88);
             color: #7fe8ff;
-            border: 2px solid #7fe8ff;
-            border-radius: 8px;
+            border: 1.5px solid #7fe8ff;
+            border-radius: 7px;
             cursor: pointer;
             box-shadow: 0 2px 6px rgba(0,0,0,0.45);
             outline: none;
@@ -77,10 +79,18 @@
         .sound-toggle-btn:hover {
             background-color: rgba(35, 48, 65, 0.95);
         }
+        .sound-toggle-btn:active {
+            transform: scale(0.94);
+        }
         .sound-toggle-btn.muted {
             background-color: rgba(45, 25, 28, 0.88);
             color: #ff9aa9;
             border-color: #ff6e8a;
+        }
+        .sound-toggle-btn svg {
+            width: 17px;
+            height: 17px;
+            display: block;
         }
         .mobile-controls {
             display: flex;
@@ -397,7 +407,7 @@
         <span class="title-line">サバイバル防衛戦</span>
     </h2>
     <div class="game-container">
-        <button class="sound-toggle-btn" id="soundToggleBtn" onclick="toggleSoundEnabled()">🔊 SOUND: ON</button>
+        <button class="sound-toggle-btn" id="soundToggleBtn" onclick="toggleSoundEnabled()" aria-label="サウンド切替" title="サウンド切替"></button>
         <canvas id="gameCanvas" width="800" height="400"></canvas>
     </div>
 
@@ -1004,15 +1014,30 @@
         const SOUND_VOLUME_BOOST = 1.5;
         let frameTailHitCount = 0;
 
+        const SPEAKER_ON_ICON = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+            </svg>
+        `;
+
+        const SPEAKER_OFF_ICON = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" opacity="0.55"></polygon>
+                <line x1="22" y1="2" x2="2" y2="22" stroke="#ff6e8a" stroke-width="2.5"></line>
+            </svg>
+        `;
+
         function updateSoundButtonUI() {
             const btn = document.getElementById("soundToggleBtn");
             if (!btn) return;
             if (soundEnabled) {
                 btn.classList.remove("muted");
-                btn.innerText = "🔊 SOUND: ON";
+                btn.innerHTML = SPEAKER_ON_ICON;
             } else {
                 btn.classList.add("muted");
-                btn.innerText = "🔇 SOUND: OFF";
+                btn.innerHTML = SPEAKER_OFF_ICON;
             }
         }
 
