@@ -3,687 +3,1039 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ビーバー・サバイバル防衛戦</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <title>ビーバー・ダム・ディフェンダーズ（サバイバル防衛版）</title>
+    <!-- Firebase v10 compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800&display=swap');
+
         * {
-            box-sizing: border-box;
-            user-select: none;
             -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            color: #333;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 5px;
+            overflow-x: hidden;
             touch-action: manipulation;
         }
-        body {
-            margin: 0;
-            padding: 10px 8px 24px;
-            background: linear-gradient(180deg, #1b2838 0%, #0f1722 100%);
-            color: #ffffff;
-            font-family: 'M PLUS Rounded 1c', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-        h1 {
-            margin: 4px 0 8px;
-            font-size: clamp(18px, 4.2vw, 26px);
-            color: #ffd54f;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
-            text-align: center;
-        }
-        .top-controls {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            width: 100%;
-            max-width: 800px;
-        }
-        .ctrl-btn {
-            font-family: 'M PLUS Rounded 1c', sans-serif;
-            font-size: 14px;
-            font-weight: 800;
-            padding: 8px 14px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
+        h2 {
             color: #fff;
-            box-shadow: 0 3px 0 rgba(0,0,0,0.4);
-            transition: transform 0.08s;
-        }
-        .ctrl-btn:active {
-            transform: translateY(2px);
-        }
-        .ctrl-btn:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
-        #startBtn { background: #2e7d32; }
-        #restartBtn { background: #c62828; }
-        #rankingBtn { background: #ef6c00; }
-
-        .canvas-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 800px;
-            border: 3px solid #5d4037;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-            background: #87CEEB;
-        }
-        canvas {
-            display: block;
-            width: 100%;
-            height: auto;
-        }
-
-        /* 小型スピーカーアイコン専用ボタン（文字なし・タイムと被らないサイズ） */
-        #soundToggleBtn {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            z-index: 20;
-            width: 30px;
-            height: 30px;
-            padding: 0;
-            border-radius: 7px;
-            border: 1.5px solid rgba(255, 255, 255, 0.75);
-            background: rgba(15, 23, 34, 0.72);
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.45);
-        }
-        #soundToggleBtn:active {
-            transform: scale(0.94);
-        }
-        #soundToggleBtn svg {
-            width: 17px;
-            height: 17px;
-            display: block;
-        }
-
-        .touch-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 800px;
-            margin-top: 10px;
-            gap: 10px;
-        }
-        .move-pad, .action-pad {
-            display: flex;
-            gap: 10px;
-        }
-        .pad-btn {
-            font-family: 'M PLUS Rounded 1c', sans-serif;
-            font-size: 16px;
+            margin: 4px auto;
+            font-size: 17px;
             font-weight: 800;
-            min-width: 68px;
-            height: 54px;
-            padding: 0 14px;
-            border: 2px solid rgba(255,255,255,0.25);
-            border-radius: 12px;
-            color: #fff;
-            background: #2b3e50;
-            box-shadow: 0 4px 0 #16222d;
-            cursor: pointer;
-        }
-        .pad-btn:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 #16222d;
-        }
-        #jumpBtn { background: #1565c0; }
-        #tailBtn { background: #d84315; }
-
-        .rank-bar {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 5px;
+            letter-spacing: 1px;
             max-width: 800px;
-            margin-top: 12px;
+            line-height: 1.3;
         }
-        .rank-chip {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.1);
-            color: #cfd8dc;
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        .rank-chip.active {
-            background: #ffd54f;
-            color: #1b2838;
-            font-weight: 800;
-            border-color: #fff;
-        }
-
-        .guide-box {
-            max-width: 800px;
-            width: 100%;
-            margin-top: 12px;
-            padding: 10px 14px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.07);
-            font-size: 12.5px;
-            line-height: 1.6;
-            color: #e0e0e0;
-        }
-
-        /* モーダル共通 */
-        .modal-backdrop {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.72);
-            z-index: 100;
-            padding: 16px;
-            overflow-y: auto;
-        }
-        .modal-box {
-            max-width: 480px;
-            margin: 30px auto;
-            background: #1e293b;
-            border: 2px solid #ffd54f;
-            border-radius: 14px;
-            padding: 18px;
-            color: #fff;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .modal-header h2 {
-            margin: 0;
-            font-size: 19px;
-            color: #ffd54f;
-        }
-        .close-btn {
-            background: #475569;
-            border: none;
-            color: #fff;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 6px;
-            padding: 4px 10px;
-            cursor: pointer;
-        }
-        #resultMessage {
-            display: none;
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        #nameEntryArea {
-            display: none;
-            margin-bottom: 12px;
-        }
-        .entry-row {
-            display: flex;
-            gap: 8px;
-            margin-top: 6px;
-        }
-        #nameInput {
-            flex: 1;
-            padding: 8px 10px;
-            border-radius: 6px;
-            border: 1px solid #94a3b8;
-            font-family: inherit;
-            font-size: 14px;
-        }
-        #registerBtn {
-            background: #2e7d32;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 16px;
-            font-weight: 800;
-            cursor: pointer;
-        }
-        .ranking-list {
-            max-height: 320px;
-            overflow-y: auto;
-            background: rgba(15, 23, 42, 0.75);
-            border-radius: 8px;
-            padding: 8px;
-        }
-        .rank-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 6px 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            font-size: 13px;
-            gap: 6px;
-        }
-        .rank-row:last-child {
-            border-bottom: none;
-        }
-        .rank-num {
-            font-weight: 800;
-            color: #ffd54f;
-            min-width: 42px;
-        }
-        .rank-name {
-            flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .title-line {
+            display: inline-block;
             white-space: nowrap;
         }
-        .rank-score {
+        .game-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+        canvas {
+            border: 3px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: block;
+            margin: 0 auto;
+            background-color: #87CEEB;
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            cursor: default;
+        }
+        .sound-toggle-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 20;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
             font-weight: 800;
+            background-color: rgba(20, 28, 38, 0.88);
             color: #7fe8ff;
+            border: 2px solid #7fe8ff;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+            outline: none;
         }
-
-        /* テスト・開発者パネル */
-        .dev-panel {
-            background: #0f172a;
-            border: 1px solid #38bdf8;
-            border-radius: 10px;
-            padding: 12px;
-            margin-top: 10px;
-            font-size: 13px;
+        .sound-toggle-btn:hover {
+            background-color: rgba(35, 48, 65, 0.95);
         }
-        .dev-row {
+        .sound-toggle-btn.muted {
+            background-color: rgba(45, 25, 28, 0.88);
+            color: #ff9aa9;
+            border-color: #ff6e8a;
+        }
+        .mobile-controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            max-width: 800px;
+            margin: 6px auto 0 auto;
+            padding: 0 6px;
             gap: 8px;
         }
-        .dev-row input[type="number"] {
-            width: 80px;
-            padding: 4px;
+        .d-pad {
+            display: flex;
+            gap: 10px;
+        }
+        .action-pad {
+            display: flex;
+            gap: 8px;
+        }
+        .ctrl-btn {
+            width: 68px;
+            height: 58px;
+            font-size: 22px;
+            font-weight: bold;
+            background-color: #333;
+            color: #ffcc00;
+            border: 3px solid #555;
+            border-radius: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            touch-action: none;
+            outline: none;
+        }
+        .ctrl-btn:active {
+            background-color: #555;
+            transform: translateY(2px);
+            box-shadow: 0 2px 3px rgba(0,0,0,0.4);
+        }
+        .tail-btn {
+            width: 108px;
+            height: 58px;
+            font-size: 14px;
+            white-space: nowrap;
+            background-color: #ff9900;
+            color: #1a0c04;
+            border: 3px solid #cc6600;
+        }
+        .tail-btn:active {
+            background-color: #ffaa22;
+        }
+        .jump-btn {
+            width: 108px;
+            height: 58px;
+            font-size: 15px;
+            white-space: nowrap;
+            background-color: #ff5533;
+            color: #fff;
+            border: 3px solid #cc3311;
+        }
+        .jump-btn:active {
+            background-color: #dd4422;
+        }
+
+        .info-area {
+            max-width: 800px;
+            margin: 6px auto 0 auto;
+        }
+        .info {
+            font-size: 11px;
+            background: #f0f0f0;
+            color: #222;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: inline-block;
+            font-weight: 800;
+        }
+        .menu-btns {
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        .action-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-weight: 800;
+            background-color: #ffcc00;
+            color: #222;
+            border: 2px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+            outline: none;
+        }
+        .action-btn.start-btn {
+            background-color: #33dd55;
+            color: #0b2410;
+        }
+        .action-btn.start-btn:hover {
+            background-color: #4cee6b;
+        }
+        .action-btn.test-btn {
+            display: none;
+            background-color: #00b8d4;
+            color: #062229;
+        }
+        .action-btn.test-btn.active {
+            background-color: #ff4081;
+            color: #fff;
+        }
+        .action-btn:hover {
+            background-color: #ffdd33;
+        }
+        .action-btn.secondary {
+            background-color: #3a3a3a;
+            color: #fff;
+            border-color: #666;
+        }
+        .action-btn.secondary:hover {
+            background-color: #4d4d4d;
+        }
+        .action-btn:disabled {
+            background-color: #888;
+            color: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* テストモードパネル（初期非表示） */
+        #testPanel {
+            display: none;
+            max-width: 800px;
+            margin: 8px auto 0 auto;
+            background: #222831;
+            color: #eeeeee;
+            border: 2px solid #00e5ff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 12px;
+            box-shadow: 0 4px 14px rgba(0, 229, 255, 0.2);
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #39424e;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .test-title {
+            color: #00e5ff;
+            font-size: 13px;
+        }
+        .test-section {
+            margin-bottom: 8px;
+        }
+        .test-label {
+            display: block;
+            color: #ffd54f;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+        .test-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .test-chip {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-weight: 800;
+            background: #303841;
+            color: #fff;
+            border: 1px solid #526071;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .test-chip:hover {
+            background: #3e4955;
+        }
+        .test-chip.active {
+            background: #00e5ff;
+            color: #102027;
+            border-color: #84ffff;
+        }
+        .test-chip.invincible-btn {
+            background: #455a64;
+            color: #eceff1;
+            border-color: #78909c;
+        }
+        .test-chip.invincible-btn.active {
+            background: #ffab00;
+            color: #1a1000;
+            border-color: #ffe57f;
+            box-shadow: 0 0 8px rgba(255, 171, 0, 0.6);
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 8px;
+        }
+        .test-param-box {
+            background: #2b323d;
+            border: 1px solid #3f4a59;
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+        .test-param-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+        .test-param-val {
+            color: #80deea;
+        }
+        .test-param-box input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        #rankingModal, #keywordModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 20, 0.96);
+            border: 3px solid #ffcc00;
+            border-radius: 12px;
+            padding: 18px 20px;
+            color: #fff;
+            width: 540px;
+            max-width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(0,0,0,0.85);
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+        }
+        #keywordModal {
+            z-index: 120;
+            width: 380px;
+            border-color: #00e5ff;
+        }
+        #rankingModal h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #ffcc00;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        #rankingList {
+            text-align: left;
+            font-size: 13px;
+            max-height: 230px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin-bottom: 12px;
+            background: #2a2a2a;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 800;
+        }
+        .ranking-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            white-space: normal;
+            word-break: break-word;
+            margin-bottom: 7px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 6px;
+        }
+        .ranking-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 2px;
+        }
+        .ranking-row .rank-name {
+            font-size: 14px;
+            line-height: 1.35;
+        }
+        .ranking-row .rank-score {
+            font-size: 12px;
+            line-height: 1.35;
+            padding-left: 16px;
+            color: #e8e8e8;
+        }
+        #nameInput, #keywordInput {
+            padding: 6px;
+            font-size: 15px;
+            width: 180px;
+            text-align: center;
             border-radius: 4px;
-            border: 1px solid #64748b;
+            border: 1px solid #ccc;
+            margin-right: 5px;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-weight: 800;
+            -webkit-user-select: text;
+            user-select: text;
         }
     </style>
 </head>
 <body>
-
-    <h1>🦫 ビーバー・サバイバル防衛戦 🛡️</h1>
-
-    <div class="top-controls">
-        <button id="startBtn" class="ctrl-btn" onclick="startGame()">▶ ゲームスタート</button>
-        <button id="restartBtn" class="ctrl-btn" onclick="restartGame()">🔄 やり直す</button>
-        <button id="rankingBtn" class="ctrl-btn" onclick="openRankingModal(false)">🏆 ランキング</button>
-    </div>
-
-    <div class="canvas-wrapper">
-        <button id="soundToggleBtn" onclick="toggleSound()" aria-label="サウンド切替" title="サウンド切替"></button>
+    <h2>
+        <span class="title-line">🦫 ビーバー・ダム・ディフェンダーズ</span><br>
+        <span class="title-line">サバイバル防衛戦</span>
+    </h2>
+    <div class="game-container">
+        <button class="sound-toggle-btn" id="soundToggleBtn" onclick="toggleSoundEnabled()">🔊 SOUND: ON</button>
         <canvas id="gameCanvas" width="800" height="400"></canvas>
     </div>
 
-    <div class="touch-controls">
-        <div class="move-pad">
-            <button id="leftBtn" class="pad-btn">◀ 左</button>
-            <button id="rightBtn" class="pad-btn">右 ▶</button>
+    <div class="mobile-controls">
+        <div class="d-pad">
+            <button class="ctrl-btn" id="leftBtn" onclick="onCommandAction('left')">◀</button>
+            <button class="ctrl-btn" id="rightBtn" onclick="onCommandAction('right')">▶</button>
         </div>
         <div class="action-pad">
-            <button id="tailBtn" class="pad-btn">💥 しっぽ</button>
-            <button id="jumpBtn" class="pad-btn">⬆ ジャンプ</button>
+            <button class="ctrl-btn tail-btn" id="tailBtn" onclick="triggerTailAttack()">💥 しっぽ攻撃</button>
+            <button class="ctrl-btn jump-btn" id="jumpBtn" onclick="onCommandAction('jump')">▲ ジャンプ</button>
         </div>
     </div>
 
-    <div id="rankChipBar" class="rank-bar"></div>
-
-    <div class="guide-box">
-        <b>【遊び方】</b> 丸太を拾って右端のダムまで運び、ダムの耐久度を保ちながらハリネズミを「しっぽ攻撃（Z / X / Enter / 💥ボタン）」で撃退しよう！<br>
-        ニンジンを食べるとHP回復、<b>金の巨大ニンジン</b>はHP全回復！別タブを開くとタイムは自動停止します。
-    </div>
-
-    <!-- ランキングモーダル -->
-    <div id="rankingModal" class="modal-backdrop">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h2 id="modalTitle" onclick="onRankingTitleClick()">🏆 サバイバル防衛ランキング</h2>
-                <button class="close-btn" onclick="closeRankingModal()">✕</button>
-            </div>
-            <div id="resultMessage"></div>
-            <div id="nameEntryArea">
-                <div style="font-size:13px; color:#cbd5e1;">ランキングに記録を登録できます（最大50位まで表示）</div>
-                <div class="entry-row">
-                    <input type="text" id="nameInput" maxlength="12" placeholder="名前を入力（12文字まで）" onkeydown="if(event.key==='Enter') saveScore()">
-                    <button id="registerBtn" onclick="saveScore()">登録</button>
-                </div>
-            </div>
-            <div id="rankingList" class="ranking-list">読み込み中...</div>
+    <div class="info-area">
+        <div class="info">
+            🛡️ 丸太を運んでダムを補修！しっぽ攻撃（HP-2）で敵を撃退し、ニンジンで体力を回復しながらダムを守り抜こう！
+        </div>
+        <div class="menu-btns">
+            <button class="action-btn start-btn" id="startBtn" onclick="startGame()">▶ ゲームスタート</button>
+            <button class="action-btn" id="restartBtn" onclick="onCommandAction('restart'); restartGame();">🔄 リスタート</button>
+            <button class="action-btn" id="rankingBtn" onclick="onCommandAction('ranking'); openRankingModal(false);">🏆 防衛ランキング</button>
+            <button class="action-btn test-btn" id="testToggleBtn" onclick="toggleTestPanel()">🧪 テストモード</button>
         </div>
     </div>
 
-    <!-- 隠し設定モーダル -->
-    <div id="keywordModal" class="modal-backdrop">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h2>🔧 テスト調整パネル</h2>
-                <button class="close-btn" onclick="closeKeywordModal()">✕</button>
+    <!-- テストモードパネル（初期非表示） -->
+    <div id="testPanel">
+        <div class="test-header">
+            <span class="test-title">🧪 テストモード（ランク＆オーラ確認 / パラメータ調整）</span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="test-chip invincible-btn" id="invincibleBtn" onclick="toggleInvincibleMode()">🛡️ 無敵モード: OFF</button>
+                <button class="test-chip" onclick="testAddTime(60000)">+1分経過</button>
+                <button class="test-chip" onclick="testAddTime(300000)">+5分経過</button>
+                <button class="test-chip" onclick="testFullHeal()">HP・ダム全回復</button>
+                <button class="test-chip" onclick="testSpawnEnemyNow()">敵1体出現</button>
+                <button class="test-chip" onclick="resetTestParams()">初期値に戻す</button>
             </div>
-            <div id="keywordAuthArea">
-                <p style="font-size:13px;">合言葉を入力してください：</p>
-                <div class="entry-row">
-                    <input type="password" id="secretKeywordInput" placeholder="合言葉">
-                    <button class="ctrl-btn" style="background:#0284c7;" onclick="verifySecretKeyword()">解除</button>
+        </div>
+
+        <div class="test-section">
+            <span class="test-label">1. ランク・オーラ即時テスト（クリックで該当ランクの時間＆見た目に切替）</span>
+            <div class="test-chip-row" id="rankTestButtons"></div>
+        </div>
+
+        <div class="test-section">
+            <span class="test-label">2. 難易度・キャラクターパラメータ調整</span>
+            <div class="test-grid">
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>ダム自然減少倍率</span>
+                        <span class="test-param-val" id="valDamWear">1.0x</span>
+                    </div>
+                    <input type="range" id="sliderDamWear" min="0" max="3.0" step="0.1" value="1.0" oninput="updateTestParams()">
                 </div>
-            </div>
-            <div id="testControlArea" style="display:none;" class="dev-panel">
-                <div class="dev-row">
-                    <label><input type="checkbox" id="invincibleCheck" onchange="invincibleMode = this.checked"> 無敵モード（HP・ダム減らない）</label>
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>敵の移動速度倍率</span>
+                        <span class="test-param-val" id="valEnemySpeed">1.0x</span>
+                    </div>
+                    <input type="range" id="sliderEnemySpeed" min="0.2" max="2.5" step="0.1" value="1.0" oninput="updateTestParams()">
                 </div>
-                <div class="dev-row">
-                    <span>ビーバー移動速度:</span>
-                    <input type="number" id="paramSpeed" step="0.2" value="4.8">
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>敵の出現間隔（フレーム）</span>
+                        <span class="test-param-val" id="valEnemyInterval">自動</span>
+                    </div>
+                    <input type="range" id="sliderEnemyInterval" min="0" max="300" step="10" value="0" oninput="updateTestParams()">
                 </div>
-                <div class="dev-row">
-                    <span>しっぽリーチ:</span>
-                    <input type="number" id="paramReach" step="5" value="62">
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>ビーバー移動速度</span>
+                        <span class="test-param-val" id="valBeaverSpeed">4.8</span>
+                    </div>
+                    <input type="range" id="sliderBeaverSpeed" min="2.5" max="10.0" step="0.2" value="4.8" oninput="updateTestParams()">
                 </div>
-                <div class="dev-row">
-                    <span>しっぽHP消費:</span>
-                    <input type="number" id="paramTailCost" step="1" value="3">
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>しっぽ攻撃 消費HP</span>
+                        <span class="test-param-val" id="valTailCost">2</span>
+                    </div>
+                    <input type="range" id="sliderTailCost" min="0" max="10" step="1" value="2" oninput="updateTestParams()">
                 </div>
-                <div class="dev-row">
-                    <span>敵スピード倍率:</span>
-                    <input type="number" id="paramEnemySpeed" step="0.1" value="1.0">
-                </div>
-                <div class="dev-row">
-                    <span>ダム自然劣化倍率:</span>
-                    <input type="number" id="paramDamWear" step="0.1" value="1.0">
-                </div>
-                <div style="text-align:right; margin-top:8px;">
-                    <button class="ctrl-btn" style="background:#2e7d32;" onclick="applyTestParams()">設定反映</button>
+                <div class="test-param-box">
+                    <div class="test-param-top">
+                        <span>しっぽ攻撃 リーチ</span>
+                        <span class="test-param-val" id="valTailReach">64</span>
+                    </div>
+                    <input type="range" id="sliderTailReach" min="40" max="150" step="4" value="64" oninput="updateTestParams()">
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ランキング＆記録登録モーダル -->
+    <div id="rankingModal">
+        <h3 id="modalTitle" onclick="handleModalTitleClick()">🏆 サバイバル防衛ランキング</h3>
+        <div id="resultMessage" style="display:none; background: #332200; border: 2px solid #ffcc00; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; color: #ffff66;"></div>
+
+        <div id="nameEntryArea" style="margin-bottom: 10px; display:none;">
+            <p style="font-size: 13px; margin: 4px 0;">お名前を入力して記録を登録:</p>
+            <input type="text" id="nameInput" maxlength="10" placeholder="なまえ">
+            <button class="action-btn" id="registerBtn" onclick="saveScore()" style="padding: 6px 14px; font-size: 14px;">登録</button>
+        </div>
+        <div id="rankingList"></div>
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+            <button class="action-btn" onclick="restartGame()" style="padding: 6px 14px; font-size: 13px;">🔄 もう一度遊ぶ</button>
+            <button class="action-btn secondary" onclick="closeRankingModal()" style="padding: 6px 14px; font-size: 13px;">閉じる</button>
+        </div>
+    </div>
+
+    <!-- キーワード入力モーダル -->
+    <div id="keywordModal">
+        <h3 style="margin-top:0; margin-bottom:10px; color:#00e5ff;">🔑 キーワード入力</h3>
+        <p style="font-size:13px; margin:6px 0 12px 0; color:#eee;">テストモードを起動するキーワードを入力してください</p>
+        <div style="margin-bottom:10px;">
+            <input type="text" id="keywordInput" maxlength="20" placeholder="キーワード" onkeydown="if(event.key==='Enter') submitKeyword();">
+            <button class="action-btn" onclick="submitKeyword()" style="padding:6px 14px; font-size:14px;">決定</button>
+        </div>
+        <div id="keywordFeedback" style="min-height:18px; font-size:12px; color:#ff6e8a; margin-bottom:8px;"></div>
+        <button class="action-btn secondary" onclick="closeKeywordModal()" style="padding:5px 12px; font-size:12px;">キャンセル</button>
     </div>
 
     <script>
         /* =========================================================
-           1. Firebase 初期化（ご自身の設定値に置き換えてください）
+           1. Firebase 初期化（beavergame2）
            ========================================================= */
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyDpeK1d5pahAnzBYb2hJNOfJYCCFqEtlDA",
+            authDomain: "beavergame2.firebaseapp.com",
+            projectId: "beavergame2",
+            storageBucket: "beavergame2.firebasestorage.app",
+            messagingSenderId: "1007667283680",
+            appId: "1:1007667283680:web:a8fd5c6dc1d07cdb2fb285",
+            measurementId: "G-TSS6FMJW81"
         };
 
-        let db = null;
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        let analytics = null;
         try {
-            if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
+            if (firebase.analytics && typeof firebase.analytics.isSupported === "function") {
+                firebase.analytics.isSupported().then((supported) => {
+                    if (supported) analytics = firebase.analytics();
+                }).catch(() => {});
             }
         } catch (e) {
-            console.warn("Firebase未設定または初期化スキップ:", e);
+            console.warn("Analytics初期化スキップ:", e);
         }
 
-        const rankingCollectionName = "beaver_survival_ranking";
+        const rankingCollectionName = "survival_rankings";
         const playLogCollectionName = "survival_play_logs";
+        const sessionId = "sess_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+        let tabPauseCount = 0;
 
         /* =========================================================
-           2. ランク定義・隠しコマンド・テスト変数
+           1b. 1分ごとのビーバーランク定義（0分〜10分）
            ========================================================= */
         const BEAVER_RANKS = [
-            "見習いビーバー",       // 0: 0s~
-            "一人前ビーバー",       // 1: 15s~
-            "熟練のダム職人",       // 2: 30s~
-            "森林の守護者",         // 3: 45s~
-            "清流の防衛隊長",       // 4: 60s~
-            "伝説の建築家",         // 5: 80s~
-            "黄金のしっぽ使い",     // 6: 100s~ (オーラ解放)
-            "不落のダム英雄",       // 7: 125s~
-            "大自然の覇者",         // 8: 150s~
-            "神話のビーバー王",     // 9: 180s~
-            "超越せし神ビーバー"    // 10: 220s~ (極限オーラ)
+            "普通ビーバー",
+            "ちょっと本気ビーバー",
+            "ニンジン好きビーバー",
+            "しっぽブンブンビーバー",
+            "眠らないビーバー",
+            "鋼鉄のしっぽビーバー",
+            "超ヤサイビーバー",
+            "宇宙ビーバー",
+            "次元超えビーバー",
+            "もはや神ビーバー",
+            "スーパーヤサイビーバーゴッド極"
         ];
 
-        const RANK_THRESHOLDS_SEC = [0, 15, 30, 45, 60, 80, 100, 125, 150, 180, 220];
-
         function getRankIndexFromMs(ms) {
-            let sec = Math.floor(ms / 1000);
-            let idx = 0;
-            for (let i = 0; i < RANK_THRESHOLDS_SEC.length; i++) {
-                if (sec >= RANK_THRESHOLDS_SEC[i]) idx = i;
-            }
-            return idx;
+            let minutesPassed = Math.floor(Math.max(0, ms) / 60000);
+            return Math.min(BEAVER_RANKS.length - 1, minutesPassed);
         }
 
         function getRankNameFromMs(ms) {
             return BEAVER_RANKS[getRankIndexFromMs(ms)];
         }
 
-        function renderRankChips() {
-            const bar = document.getElementById("rankChipBar");
-            if (!bar) return;
-            bar.innerHTML = BEAVER_RANKS.map((name, i) =>
-                `<span class="rank-chip" id="rankChip_${i}">${name} (${RANK_THRESHOLDS_SEC[i]}秒)</span>`
-            ).join("");
+        /* =========================================================
+           1c. 隠し要素（キーワード復元＆テストモード）
+           ========================================================= */
+        const _cTable = [
+            [114, 101, 115, 116, 97, 114, 116],
+            [108, 101, 102, 116],
+            [114, 105, 103, 104, 116],
+            [106, 117, 109, 112],
+            [114, 97, 110, 107, 105, 110, 103]
+        ];
+        const _cMap = [0, 0, 1, 2, 1, 2, 3, 3, 4];
+
+        function _decKey() {
+            return String.fromCharCode(0x30d0, 0x30fc, 0x30d3, 0x30fc);
         }
 
-        function highlightActiveRankChip() {
-            let idx = getRankIndexFromMs(survivalTimeMs);
-            BEAVER_RANKS.forEach((_, i) => {
-                const el = document.getElementById(`rankChip_${i}`);
-                if (el) el.classList.toggle("active", i === idx);
-            });
+        function _getCmdSeq() {
+            return _cMap.map(idx => String.fromCharCode(..._cTable[idx]));
         }
 
-        let nightMode = false;
-        let nightModeMsgTimer = 0;
-        let secretClickCount = 0;
+        function _getClickThreshold() {
+            return (11 * 5);
+        }
+
         let rankingTitleClickCount = 0;
-        let tabPauseCount = 0;
+        let testUnlocked = false;
+        let testModeOpen = false;
         let invincibleMode = false;
-        let testModeUsed = false;
 
         let testParams = {
-            beaverSpeed: 4.8,
-            tailReach: 62,
-            tailHpCost: 3,
-            enemySpeedMult: 1.0,
             damWearMult: 1.0,
-            fixedEnemyInterval: 0
+            enemySpeedMult: 1.0,
+            fixedEnemyInterval: 0,
+            beaverSpeed: 4.8,
+            tailHpCost: 2,
+            tailReach: 64
         };
 
-        function toggleNightMode(showNotice = false) {
-            nightMode = !nightMode;
-            if (showNotice) nightModeMsgTimer = 110;
-        }
+        function handleModalTitleClick() {
+            const titleEl = document.getElementById("modalTitle");
+            if (!titleEl) return;
+            const currentText = titleEl.innerText || "";
+            if (!currentText.includes("サバイバル防衛ランキング")) return;
 
-        let cmdSeq = [];
-        function onCommandAction(act) {
-            cmdSeq.push(act);
-            if (cmdSeq.length > 6) cmdSeq.shift();
-            if (cmdSeq.join(",") === "left,left,right,right,jump,jump") {
-                cmdSeq = [];
-                openKeywordModal();
-            }
-        }
-
-        function onRankingTitleClick() {
             rankingTitleClickCount++;
-            if (rankingTitleClickCount >= 7) {
+            if (rankingTitleClickCount >= _getClickThreshold()) {
                 rankingTitleClickCount = 0;
-                closeRankingModal();
                 openKeywordModal();
             }
         }
 
         function openKeywordModal() {
-            document.getElementById("keywordModal").style.display = "block";
+            const modal = document.getElementById("keywordModal");
+            const input = document.getElementById("keywordInput");
+            const fb = document.getElementById("keywordFeedback");
+            if (fb) fb.innerText = "";
+            if (modal) modal.style.display = "block";
+            if (input) {
+                input.value = "";
+                setTimeout(() => input.focus(), 80);
+            }
         }
 
         function closeKeywordModal() {
-            document.getElementById("keywordModal").style.display = "none";
+            const modal = document.getElementById("keywordModal");
+            if (modal) modal.style.display = "none";
+            if (document.activeElement) document.activeElement.blur();
         }
 
-        function verifySecretKeyword() {
-            const val = document.getElementById("secretKeywordInput").value.trim();
-            if (val === "beaver777") {
-                testModeUsed = true;
-                document.getElementById("keywordAuthArea").style.display = "none";
-                document.getElementById("testControlArea").style.display = "block";
+        function submitKeyword() {
+            const input = document.getElementById("keywordInput");
+            const fb = document.getElementById("keywordFeedback");
+            const val = (input ? input.value : "").trim();
+            if (val === _decKey()) {
+                testUnlocked = true;
+                closeKeywordModal();
+                closeRankingModal();
+                const toggleBtn = document.getElementById("testToggleBtn");
+                if (toggleBtn) toggleBtn.style.display = "inline-block";
+                if (!testModeOpen) {
+                    toggleTestPanel();
+                } else {
+                    buildRankTestButtons();
+                    syncSliderLabels();
+                    updateInvincibleButtonUI();
+                }
+                playRankUpSound();
             } else {
-                alert("合言葉が違います");
+                if (fb) fb.innerText = "キーワードが違います。";
+                if (input) {
+                    input.value = "";
+                    input.focus();
+                }
             }
         }
 
-        function applyTestParams() {
-            testModeUsed = true;
-            testParams.beaverSpeed = parseFloat(document.getElementById("paramSpeed").value) || 4.8;
-            testParams.tailReach = parseFloat(document.getElementById("paramReach").value) || 62;
-            testParams.tailHpCost = parseFloat(document.getElementById("paramTailCost").value) || 0;
-            testParams.enemySpeedMult = parseFloat(document.getElementById("paramEnemySpeed").value) || 1.0;
-            testParams.damWearMult = parseFloat(document.getElementById("paramDamWear").value) || 1.0;
-            closeKeywordModal();
+        function toggleInvincibleMode() {
+            invincibleMode = !invincibleMode;
+            if (invincibleMode) {
+                hp = maxHp;
+                damHp = maxDamHp;
+            }
+            updateInvincibleButtonUI();
+            playHealSound();
+        }
+
+        function updateInvincibleButtonUI() {
+            const btn = document.getElementById("invincibleBtn");
+            if (!btn) return;
+            if (invincibleMode) {
+                btn.classList.add("active");
+                btn.innerText = "🛡️ 無敵モード: ON";
+            } else {
+                btn.classList.remove("active");
+                btn.innerText = "🛡️ 無敵モード: OFF";
+            }
+        }
+
+        function buildRankTestButtons() {
+            const container = document.getElementById("rankTestButtons");
+            if (!container) return;
+            container.innerHTML = "";
+            BEAVER_RANKS.forEach((rankName, idx) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "test-chip";
+                btn.id = "rankChip_" + idx;
+                let tag = "";
+                if (idx >= 6 && idx < 10) tag = " [黄オーラ]";
+                if (idx >= 10) tag = " [水色+キラキラ]";
+                btn.innerText = `${idx}分:${rankName}${tag}`;
+                btn.onclick = () => testSetRank(idx);
+                container.appendChild(btn);
+            });
+            highlightActiveRankChip();
+        }
+
+        function highlightActiveRankChip() {
+            const activeIdx = getRankIndexFromMs(survivalTimeMs);
+            for (let i = 0; i < BEAVER_RANKS.length; i++) {
+                const chip = document.getElementById("rankChip_" + i);
+                if (chip) {
+                    if (i === activeIdx) chip.classList.add("active");
+                    else chip.classList.remove("active");
+                }
+            }
+        }
+
+        function toggleTestPanel() {
+            if (!testUnlocked) return;
+            testModeOpen = !testModeOpen;
+            const panel = document.getElementById("testPanel");
+            const btn = document.getElementById("testToggleBtn");
+            if (panel) panel.style.display = testModeOpen ? "block" : "none";
+            if (btn) {
+                if (testModeOpen) btn.classList.add("active");
+                else btn.classList.remove("active");
+            }
+            if (testModeOpen) {
+                buildRankTestButtons();
+                syncSliderLabels();
+                updateInvincibleButtonUI();
+            }
+        }
+
+        function testSetRank(rankIdx) {
+            initAudio();
+            if (!gameStarted && !gameOver) {
+                startGame();
+            }
+            survivalTimeMs = rankIdx * 60000;
+            currentRankIndex = rankIdx;
+            rankUpBannerText = BEAVER_RANKS[rankIdx];
+            rankUpBannerTimer = 180;
+            waveLevel = 1 + Math.floor(Math.floor(survivalTimeMs / 1000) / 15);
+            highlightActiveRankChip();
+            playRankUpSound();
+        }
+
+        function testAddTime(deltaMs) {
+            initAudio();
+            if (!gameStarted && !gameOver) {
+                startGame();
+            }
+            survivalTimeMs = Math.min(660000, survivalTimeMs + deltaMs);
+            let newIdx = getRankIndexFromMs(survivalTimeMs);
+            if (newIdx !== currentRankIndex) {
+                currentRankIndex = newIdx;
+                rankUpBannerText = BEAVER_RANKS[currentRankIndex];
+                rankUpBannerTimer = 180;
+            }
+            waveLevel = 1 + Math.floor(Math.floor(survivalTimeMs / 1000) / 15);
+            highlightActiveRankChip();
+            playRankUpSound();
+        }
+
+        function testFullHeal() {
+            hp = maxHp;
+            damHp = maxDamHp;
+            playHealSound();
+        }
+
+        function testSpawnEnemyNow() {
+            if (!gameStarted && !gameOver) {
+                startGame();
+            }
+            spawnEnemy(beaver.x - 180 > 80 ? beaver.x - 180 : 300);
+        }
+
+        function syncSliderLabels() {
+            document.getElementById("sliderDamWear").value = testParams.damWearMult;
+            document.getElementById("valDamWear").innerText = testParams.damWearMult.toFixed(1) + "x";
+
+            document.getElementById("sliderEnemySpeed").value = testParams.enemySpeedMult;
+            document.getElementById("valEnemySpeed").innerText = testParams.enemySpeedMult.toFixed(1) + "x";
+
+            document.getElementById("sliderEnemyInterval").value = testParams.fixedEnemyInterval;
+            document.getElementById("valEnemyInterval").innerText = testParams.fixedEnemyInterval === 0 ? "自動" : testParams.fixedEnemyInterval + "f";
+
+            document.getElementById("sliderBeaverSpeed").value = testParams.beaverSpeed;
+            document.getElementById("valBeaverSpeed").innerText = testParams.beaverSpeed.toFixed(1);
+
+            document.getElementById("sliderTailCost").value = testParams.tailHpCost;
+            document.getElementById("valTailCost").innerText = String(testParams.tailHpCost);
+
+            document.getElementById("sliderTailReach").value = testParams.tailReach;
+            document.getElementById("valTailReach").innerText = String(testParams.tailReach);
+        }
+
+        function updateTestParams() {
+            testParams.damWearMult = parseFloat(document.getElementById("sliderDamWear").value);
+            testParams.enemySpeedMult = parseFloat(document.getElementById("sliderEnemySpeed").value);
+            testParams.fixedEnemyInterval = parseInt(document.getElementById("sliderEnemyInterval").value, 10);
+            testParams.beaverSpeed = parseFloat(document.getElementById("sliderBeaverSpeed").value);
+            testParams.tailHpCost = parseInt(document.getElementById("sliderTailCost").value, 10);
+            testParams.tailReach = parseInt(document.getElementById("sliderTailReach").value, 10);
+
+            beaver.baseSpeed = testParams.beaverSpeed;
+            syncSliderLabels();
+        }
+
+        function resetTestParams() {
+            invincibleMode = false;
+            testParams = {
+                damWearMult: 1.0,
+                enemySpeedMult: 1.0,
+                fixedEnemyInterval: 0,
+                beaverSpeed: 4.8,
+                tailHpCost: 2,
+                tailReach: 64
+            };
+            beaver.baseSpeed = testParams.beaverSpeed;
+            updateInvincibleButtonUI();
+            syncSliderLabels();
         }
 
         /* =========================================================
-           3. Firestore ランキング（50位まで）＆プレイログ保存
+           2. 隠しコマンド＆夜景モード
            ========================================================= */
-        async function getCloudRanking() {
-            if (!db) {
-                let local = JSON.parse(localStorage.getItem("beaver_local_ranking") || "[]");
-                local.sort((a, b) => (b.survivalMs || 0) - (a.survivalMs || 0));
-                return local.slice(0, 50);
-            }
-            let snapshot = await db.collection(rankingCollectionName)
-                .orderBy("survivalMs", "desc")
-                .limit(50)
-                .get();
-            let list = [];
-            snapshot.forEach(doc => list.push(doc.data()));
-            return list;
+        let currentInputSequence = [];
+        let nightMode = false;
+        let nightModeMsgTimer = 0;
+        let secretClickCount = 0;
+
+        function toggleNightMode(showMsg = true) {
+            nightMode = !nightMode;
+            if (showMsg) nightModeMsgTimer = 120;
+            playHealSound();
         }
 
-        async function saveCloudScore(playerName, survivalMs, timeStr, kills, repairs) {
-            const record = {
+        function onCommandAction(action) {
+            const targetSeq = _getCmdSeq();
+            currentInputSequence.push(action);
+            if (currentInputSequence.length > targetSeq.length) {
+                currentInputSequence.shift();
+            }
+            let matched = true;
+            for (let i = 0; i < targetSeq.length; i++) {
+                if (currentInputSequence[i] !== targetSeq[i]) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched && currentInputSequence.length === targetSeq.length) {
+                toggleNightMode(true);
+                currentInputSequence = [];
+            }
+        }
+
+        /* =========================================================
+           3. クラウドランキング＆プレイログ保存
+           ========================================================= */
+        async function getCloudRanking() {
+            try {
+                let snapshot = await db.collection(rankingCollectionName)
+                    .orderBy("survivalMs", "desc")
+                    .limit(50)
+                    .get();
+                let ranking = [];
+                snapshot.forEach(doc => ranking.push(doc.data()));
+                return ranking;
+            } catch (e) {
+                console.error("ランキング取得エラー:", e);
+                try {
+                    let snapshot2 = await db.collection(rankingCollectionName).get();
+                    let ranking2 = [];
+                    snapshot2.forEach(doc => ranking2.push(doc.data()));
+                    ranking2.sort((a, b) => (b.survivalMs || 0) - (a.survivalMs || 0));
+                    return ranking2;
+                } catch (err2) {
+                    return [];
+                }
+            }
+        }
+
+        async function saveCloudScore(playerName, survivalMs, survivalStr, kills, repairs) {
+            let now = new Date();
+            let dateStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            await db.collection(rankingCollectionName).add({
                 name: playerName,
-                survivalMs: Math.floor(survivalMs),
-                timeString: timeStr,
+                survivalMs: survivalMs,
+                survivalStr: survivalStr,
                 kills: kills,
                 repairs: repairs,
-                rankTitle: getRankNameFromMs(survivalMs),
-                createdAt: new Date().toISOString()
-            };
-            if (!db) {
-                let local = JSON.parse(localStorage.getItem("beaver_local_ranking") || "[]");
-                local.push(record);
-                local.sort((a, b) => (b.survivalMs || 0) - (a.survivalMs || 0));
-                localStorage.setItem("beaver_local_ranking", JSON.stringify(local.slice(0, 50)));
-                return;
-            }
-            await db.collection(rankingCollectionName).add(record);
+                rankName: getRankNameFromMs(survivalMs),
+                date: dateStr,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        function hasCustomTestParams() {
+            return (
+                testParams.damWearMult !== 1.0 ||
+                testParams.enemySpeedMult !== 1.0 ||
+                testParams.fixedEnemyInterval !== 0 ||
+                testParams.beaverSpeed !== 4.8 ||
+                testParams.tailHpCost !== 2 ||
+                testParams.tailReach !== 64
+            );
         }
 
         async function savePlayLog(playerName) {
-            if (!db) return;
-            try {
-                await db.collection(playLogCollectionName).add({
-                    name: playerName,
-                    survivalMs: Math.floor(survivalTimeMs),
-                    timeString: finalTimeString,
-                    kills: killCount,
-                    repairs: repairCount,
-                    tabPauseCount: tabPauseCount,
-                    testModeUsed: testModeUsed || invincibleMode,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } catch (e) {
-                console.warn("ログ保存エラー:", e);
-            }
-        }
+            const elapsedSec = Math.max(0.001, survivalTimeMs / 1000);
+            const killsPerSec = Number((killCount / elapsedSec).toFixed(2));
+            const repairsPerSec = Number((repairCount / elapsedSec).toFixed(2));
+            const isSuspiciousRate =
+                (!testUnlocked && !invincibleMode) &&
+                (killCount / elapsedSec > 2.5 || repairCount / elapsedSec > 1.5);
 
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;");
+            const logData = {
+                eventType: "name_registration_gameover",
+                sessionId: sessionId,
+                playerName: playerName,
+                survivalMs: Math.round(survivalTimeMs),
+                survivalStr: finalTimeString || formatTime(survivalTimeMs),
+                kills: killCount,
+                repairs: repairCount,
+                killsPerSec: killsPerSec,
+                repairsPerSec: repairsPerSec,
+                waveLevel: waveLevel,
+                rankName: getRankNameFromMs(survivalTimeMs),
+                gameOverReason: gameOverReason || "",
+                damHpAtEnd: Math.ceil(damHp),
+                hpAtEnd: Math.ceil(hp),
+                nightModeAtEnd: nightMode,
+                tabPauseCount: tabPauseCount,
+                testUnlocked: testUnlocked,
+                invincibleMode: invincibleMode,
+                usedCustomParams: hasCustomTestParams(),
+                testParamsSnapshot: testUnlocked ? { ...testParams } : null,
+                isSuspiciousRate: isSuspiciousRate,
+                clientInfo: {
+                    platform: navigator.platform || "",
+                    language: navigator.language || "",
+                    viewport: `${window.innerWidth}x${window.innerHeight}`,
+                    userAgent: navigator.userAgent || "",
+                    href: window.location.href
+                },
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                await db.collection(playLogCollectionName).add(logData);
+            } catch (e) {
+                console.warn("プレイログ保存エラー:", e);
+            }
         }
 
         function updateRankingDisplay(ranking) {
-            const listEl = document.getElementById("rankingList");
-            if (!listEl) return;
-            if (!ranking || ranking.length === 0) {
-                listEl.innerHTML = `<div style="text-align:center; padding:16px; color:#94a3b8;">まだ記録がありません。最初の防衛者になろう！</div>`;
+            let listEl = document.getElementById("rankingList");
+            if (ranking.length === 0) {
+                listEl.innerHTML = "<div style='text-align:center; color:#888; padding: 10px;'>まだ記録がありません</div>";
                 return;
             }
-            listEl.innerHTML = ranking.slice(0, 50).map((item, idx) => {
-                let medal = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : `${idx + 1}位`));
-                return `
-                    <div class="rank-row">
-                        <span class="rank-num">${medal}</span>
-                        <span class="rank-name">${escapeHtml(item.name || "名無しさん")}</span>
-                        <span class="rank-score">${escapeHtml(item.timeString || formatTime(item.survivalMs || 0))}</span>
-                    </div>
-                `;
-            }).join("");
+            let listHtml = "";
+            ranking.forEach((r, index) => {
+                let rankNum = index + 1;
+                let nameDisplay = r.name || "名無しさん";
+                let rowStyle = "";
+                let scoreStyle = "";
+                if (rankNum === 1) {
+                    nameDisplay = "👑 " + nameDisplay;
+                    rowStyle = "color: #ffd700; font-weight: bold;";
+                    scoreStyle = "color: #ffe885;";
+                }
+                let beaverRank = r.rankName || getRankNameFromMs(r.survivalMs || 0);
+                let subInfo = (r.kills !== undefined) ? `  [撃退:${r.kills}]` : "";
+                let dateInfo = r.date ? ` <small style="color:#aaa; font-weight:normal;">(${r.date})</small>` : "";
+                listHtml += `<div class="ranking-row" style="${rowStyle}"><span class="rank-name">${rankNum}. ${nameDisplay} <small style="color:#7fe8ff; font-weight:normal;">[${beaverRank}]</small></span><span class="rank-score" style="${scoreStyle}">${r.survivalStr}${subInfo}${dateInfo}</span></div>`;
+            });
+            listEl.innerHTML = listHtml;
         }
 
         /* =========================================================
-           4. サウンド制御（小型スピーカーアイコン切り替え）
+           4. Web Audio API 効果音・BGM（音量50%アップ・同時撃退SE最大2回）
            ========================================================= */
         let audioCtx = null;
         let masterGain = null;
         let soundEnabled = true;
-        const SOUND_VOLUME_BOOST = 1.15;
+        const SOUND_VOLUME_BOOST = 1.5;
         let frameTailHitCount = 0;
-
-        const SPEAKER_ON_SVG = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"></polygon>
-                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-            </svg>
-        `;
-
-        const SPEAKER_OFF_SVG = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" opacity="0.55"></polygon>
-                <line x1="22" y1="2" x2="2" y2="22" stroke="#ff6b6b" stroke-width="2.5"></line>
-            </svg>
-        `;
 
         function updateSoundButtonUI() {
             const btn = document.getElementById("soundToggleBtn");
             if (!btn) return;
-            btn.innerHTML = soundEnabled ? SPEAKER_ON_SVG : SPEAKER_OFF_SVG;
-            btn.setAttribute("aria-pressed", soundEnabled ? "true" : "false");
+            if (soundEnabled) {
+                btn.classList.remove("muted");
+                btn.innerText = "🔊 SOUND: ON";
+            } else {
+                btn.classList.add("muted");
+                btn.innerText = "🔇 SOUND: OFF";
+            }
         }
 
-        function toggleSound() {
+        function toggleSoundEnabled() {
             soundEnabled = !soundEnabled;
             updateSoundButtonUI();
             if (soundEnabled) {
                 initAudio();
+                if (masterGain && audioCtx) {
+                    masterGain.gain.setValueAtTime(SOUND_VOLUME_BOOST, audioCtx.currentTime);
+                }
+                playWoodSound();
             } else if (masterGain && audioCtx) {
                 masterGain.gain.setValueAtTime(0.0, audioCtx.currentTime);
             }
+            if (document.activeElement) document.activeElement.blur();
         }
 
         function initAudio() {
             if (!audioCtx) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContextClass) return;
-                audioCtx = new AudioContextClass();
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                audioCtx = new Ctx();
                 masterGain = audioCtx.createGain();
                 masterGain.gain.setValueAtTime(soundEnabled ? SOUND_VOLUME_BOOST : 0.0, audioCtx.currentTime);
                 masterGain.connect(audioCtx.destination);
@@ -1010,7 +1362,7 @@
             { x: 450, y: 80, speed: 0.15, scale: 1.3 },
             { x: 900, y: 40, speed: 0.25, scale: 0.8 },
             { x: 1400, y: 70, speed: 0.18, scale: 1.2 },
-            { x: 1850, y: 50, speed: 0.22, scale: 0.9 }
+            { x: 1850, y: 50, speed: 0.22, scale: 0.9 },
         ];
 
         let stars = [];
@@ -1192,7 +1544,6 @@
 
         function setupTouchButton(id, code) {
             const btn = document.getElementById(id);
-            if (!btn) return;
             btn.addEventListener("touchstart", (e) => { e.preventDefault(); initAudio(); keys[code] = true; });
             btn.addEventListener("touchend", (e) => { e.preventDefault(); keys[code] = false; });
             btn.addEventListener("mousedown", (e) => { e.preventDefault(); initAudio(); keys[code] = true; });
@@ -1205,10 +1556,8 @@
         setupTouchButton("jumpBtn", "Space");
 
         const tailBtn = document.getElementById("tailBtn");
-        if (tailBtn) {
-            tailBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerTailAttack(); });
-            tailBtn.addEventListener("mousedown", (e) => { e.preventDefault(); triggerTailAttack(); });
-        }
+        tailBtn.addEventListener("touchstart", (e) => { e.preventDefault(); triggerTailAttack(); });
+        tailBtn.addEventListener("mousedown", (e) => { e.preventDefault(); triggerTailAttack(); });
 
         canvas.addEventListener("click", (e) => {
             let rect = canvas.getBoundingClientRect();
@@ -1217,7 +1566,7 @@
             if (clickX >= 140 && clickX <= 260 && clickY >= 45 && clickY <= 75) {
                 secretClickCount++;
                 initAudio();
-                if (secretClickCount >= 10) {
+                if (secretClickCount >= (5 * 2)) {
                     toggleNightMode(true);
                     secretClickCount = 0;
                 }
@@ -2970,6 +3319,7 @@
             ctx.strokeText(waveKillText, 160, 76);
             ctx.fillText(waveKillText, 160, 76);
 
+            // WAVE下の1分ごとのランク表示（長いランク名や[無敵]も枠内に収まるよう拡張）
             let rankLabelText = `🏅 ${activeRankName}${invincibleMode ? " [無敵]" : ""}`;
             let rankFill = invincibleMode
                 ? "#ffab00"
@@ -3002,8 +3352,8 @@
             ctx.fillStyle = "#ffff33";
             ctx.strokeStyle = "#000000";
             ctx.lineWidth = 5;
-            ctx.strokeText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 45, 34);
-            ctx.fillText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 45, 34);
+            ctx.strokeText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 55, 34);
+            ctx.fillText("DEFENSE: " + formatTime(survivalTimeMs), canvas.width / 2 + 55, 34);
             ctx.restore();
 
             if (damX - cameraX > canvas.width - 30) {
@@ -3019,6 +3369,7 @@
                 ctx.restore();
             }
 
+            // ランク上昇時のバナー（長いランク名でも枠からはみ出ない幅・サイズに調整）
             if (rankUpBannerTimer > 0) {
                 let alpha = Math.min(1, rankUpBannerTimer / 25);
                 let bannerStr = `🎉 ランクアップ！${rankUpBannerText}！`;
@@ -3146,7 +3497,6 @@
         }
 
         window.addEventListener("DOMContentLoaded", async () => {
-            renderRankChips();
             updateSoundButtonUI();
             restartGame();
             requestAnimationFrame(loop);
